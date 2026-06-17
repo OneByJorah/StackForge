@@ -15,5 +15,5 @@ docker compose up -d llama-server
 ## Backup Honcho memory
 
 ```bash
-tar czf honcho-backup.tgz /home/j1admin/docker/free-auto/honcho
+tar czf honcho-backup.tgz /home/j1admin/docker/j1-stack-deploy/honcho
 ```
