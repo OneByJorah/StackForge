@@ -10,8 +10,8 @@ set +a
 
 VAULT="${OBSIDIAN_VAULT_PATH:-$REPO_ROOT/obsidian-vault}"
 mkdir -p "$VAULT"
+mkdir -p "$VAULT/.obsidian/plugins"
 cat > "$VAULT/.obsidian/app.json" <<'EOF'
 {"baseFontSize":16,"theme":"obsidian","translucency":false}
 EOF
-mkdir -p "$VAULT/.obsidian/plugins"
 echo "init-obsidian: vault ready at $VAULT"

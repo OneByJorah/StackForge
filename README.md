@@ -29,13 +29,17 @@
 
 StackDeploy is a Docker Compose-based self-hosted stack for Hermes Agents. It consolidates local web search, long-term memory, browser automation, vector storage, and Obsidian note-taking into a reproducible, one-command deployment. The stack is designed to run on CPU-only hosts with no local GPU, while keeping the LLM layer intentionally external so you can plug in free cloud providers.
 
+Bundled integrations:
+- **browser-search**: SearXNG + Camofox + CloakBrowser for search and protected-site browsing
+- **obsidian-skills**: Agent skills for Obsidian Markdown, Bases, JSON Canvas, CLI, and Defuddle extraction
+
 Secrets and environment configuration are managed via `docker-compose.yml` and `.env`, never committed to version control.
 
 ---
 
 ## Architecture
 
-Client → Hermes Agent → Local services (SearXNG, Honcho, Chrome, Qdrant, Obsidian, PostgreSQL + Redis) → optional upstream LLM provider via Hermes config.
+Client → Hermes Agent → Local services (SearXNG, Camofox, Qdrant, Obsidian, PostgreSQL + Redis) → optional upstream LLM provider via Hermes config.
 
 ---
 
@@ -55,10 +59,12 @@ Client → Hermes Agent → Local services (SearXNG, Honcho, Chrome, Qdrant, Obs
 ## Features
 
 - **SearXNG**: privacy-respecting self-hosted web search.
+- **Camofox**: browser navigation via REST API for standard sites.
+- **CloakBrowser**: stealth browser fallback for anti-bot protected sites.
 - **Honcho API**: long-term memory and workspace context for Hermes.
-- **Chrome CDP**: browser automation via remote DevTools.
 - **Qdrant**: vector storage for semantic retrieval.
 - **Obsidian vault**: markdown-backed note-taking exposed via web UI.
+- **Obsidian Skills**: agent-ready skills for Markdown, Bases, Canvas, CLI, and Defuddle extraction.
 - **PostgreSQL + pgvector + Redis**: durable memory backend with vector support.
 - **One-command bootstrap**: clone, env, stack, init, healthcheck.
 - **Extensible service-based design**: add modules via Compose blocks.
@@ -114,7 +120,47 @@ docker compose logs -f
 ./scripts/healthcheck.sh <server-ip>
 ```
 
----
+## Browser-search
+
+Self-hosted search and browsing via SearXNG, Camofox, and CloakBrowser.
+
+**Endpoints**
+
+| Service | Port | Notes |
+|---|---|---|
+| SearXNG | `8080` | JSON API: `/search?format=json&q=<query>` |
+| Camofox | `9377` | REST API: `/docs` for Swagger UI |
+
+**Setup**
+
+```bash
+cd browser-search
+npm install
+```
+
+Optional: run Camofox with auth keys in `.env`:
+```bash
+camofox_api_key=... camofox_admin_key=... docker compose up -d
+```
+
+CloakBrowser is included as npm scripts:
+```bash
+node scripts/cloak/cloak-fetch.mjs "https://example.com"
+```
+
+## Obsidian Skills
+
+Agent-readable skills for working with Obsidian vaults.
+
+| Skill | Purpose |
+|---|---|
+| `obsidian-markdown` | Create/edit Obsidian Flavored Markdown |
+| `obsidian-bases` | Create/edit `.base` views and filters |
+| `json-canvas` | Create/edit `.canvas` mind maps |
+| `obsidian-cli` | Interact with vault via `obsidian` CLI |
+| `defuddle` | Extract clean markdown from URLs |
+
+These skills are available at `obsidian-skills/skills/`. If your agent loads skills from a directory, point it there. For Obsidian CLI, ensure the desktop app is installed and accessible on the host.
 
 ## CI/CD & Deployment
 
@@ -139,6 +185,17 @@ StackDeploy/
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
+├── browser-search/         # browser-search skill + scripts (CloakBrowser, Camofox helper)
+│   ├── SKILL.md
+│   ├── scripts/
+│   └── docker/
+├── obsidian-skills/        # kepano/obsidian-skills agent skills
+│   └── skills/
+│       ├── defuddle/
+│       ├── json-canvas/
+│       ├── obsidian-bases/
+│       ├── obsidian-cli/
+│       └── obsidian-markdown/
 ├── scripts/
 │   ├── bootstrap.sh
 │   ├── healthcheck.sh

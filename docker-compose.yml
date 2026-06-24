@@ -1,6 +1,121 @@
 services:
-  # Local LLMs: intentionally omitted here.
-  # Enable ONE optional block below if you want local inference.
+  # --- Search ---
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - searxng-data:/etc/searxng
+      - ./searxng/settings.yml:/etc/searxng/settings.yml
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # --- Browser automation (browser-search: Camofox) ---
+  camofox:
+    image: ghcr.io/jo-inc/camofox-browser:latest
+    container_name: camofox-browser
+    shm_size: 2g
+    ports:
+      - "9377:9377"
+    environment:
+      CAMOFOX_API_KEY: ${CAMOFOX_API_KEY:-}
+      CAMOFOX_ADMIN_KEY: ${CAMOFOX_ADMIN_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9377/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # --- Notes ---
+  obsidian:
+    image: sytone/obsidian-remote:latest
+    container_name: obsidian
+    ports:
+      - "8083:8080"
+    volumes:
+      - ${OBSIDIAN_VAULT_PATH:-./obsidian-vault}:/vaults
+    environment:
+      FM_HOME: /vaults
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # --- Memory ---
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # --- Optional: Honcho (requires local image honcho-repo-api:latest) ---
+  # honcho-db:
+  #   image: pgvector/pgvector:pg15
+  #   container_name: honcho-db
+  #   environment:
+  #     POSTGRES_USER: honcho
+  #     POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}
+  #     POSTGRES_DB: honcho
+  #   volumes:
+  #     - honcho-postgres:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 30s
+  #   restart: unless-stopped
+  # honcho-redis:
+  #   image: redis:8.2
+  #   container_name: honcho-redis
+  #   command: ["redis-server", "--bind", "0.0.0.0"]
+  #   volumes:
+  #     - honcho-redis:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   restart: unless-stopped
+  # honcho:
+  #   image: honcho-repo-api:latest
+  #   container_name: honcho
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     DB_CONNECTION_URI: postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}@honcho-db:5432/honcho
+  #     REDIS_URL: redis://honcho-redis:6379/0
+  #     AUTH_USE_AUTH: "false"
+  #     HONCHO_TOKEN: ${HONCHO_TOKEN:-}
+  #   volumes:
+  #     - honcho-data:/app/data
+  #   depends_on:
+  #     honcho-db:
+  #       condition: service_healthy
+  #     honcho-redis:
+  #       condition: service_healthy
+  #   restart: unless-stopped
 
   # --- Optional: Ollama (CPU-friendly local LLM) ---
   # ollama:
@@ -45,122 +160,12 @@ services:
   #             capabilities: [gpu]
   #   restart: unless-stopped
 
-  searxng:
-    image: searxng/searxng:latest
-    container_name: searxng
-    ports:
-      - "8080:8080"
-    volumes:
-      - searxng-data:/etc/searxng
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
-  honcho-db:
-    image: pgvector/pgvector:pg15
-    container_name: honcho-db
-    environment:
-      POSTGRES_USER: honcho
-      POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}
-      POSTGRES_DB: honcho
-    volumes:
-      - honcho-postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-
-  honcho-redis:
-    image: redis:8.2
-    container_name: honcho-redis
-    command: ["redis-server", "--bind", "0.0.0.0"]
-    volumes:
-      - honcho-redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-
-  honcho:
-    image: honcho-repo-api:latest
-    container_name: honcho
-    ports:
-      - "8081:8081"
-    environment:
-      DB_CONNECTION_URI: postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}@honcho-db:5432/honcho
-      REDIS_URL: redis://honcho-redis:6379/0
-      AUTH_USE_AUTH: false
-      HONCHO_TOKEN: ${HONCHO_TOKEN:-}
-    volumes:
-      - honcho-data:/app/data
-    depends_on:
-      honcho-db:
-        condition: service_healthy
-      honcho-redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  obsidian:
-    image: ghcr.io/obsidianmd/web:latest
-    container_name: obsidian
-    ports:
-      - "8083:8080"
-    volumes:
-      - obsidian-vault:/vault
-    environment:
-      VAULT_PATH: /vault
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
-  chrome:
-    image: zenika/alpine-chrome:latest
-    container_name: browser-chrome
-    shm_size: 2g
-    ports:
-      - "9222:9222"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9222/json/version || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: qdrant
-    ports:
-      - "6333:6333"
-    volumes:
-      - qdrant-data:/qdrant/storage
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
 volumes:
   searxng-data:
-  honcho-postgres:
-  honcho-redis:
-  honcho-data:
+  camofox-data:
   ollama-models:
   obsidian-vault:
   qdrant-data:
+  # honcho-postgres:
+  # honcho-redis:
+  # honcho-data:
