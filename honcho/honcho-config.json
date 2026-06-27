@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "baseUrl": "http://localhost:8000",
+  "workspace": "hermes",
+  "aiPeer": "hermes",
+  "memoryMode": "hybrid",
+  "writeFrequency": "async",
+  "dialecticReasoningLevel": "low",
+  "dialecticMaxChars": 600,
+  "recallMode": "hybrid",
+  "sessionStrategy": "per-directory",
+  "hosts": {
+    "hermes": {
+      "enabled": true,
+      "workspace": "hermes",
+      "aiPeer": "hermes"
+    }
+  }
+}

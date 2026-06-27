@@ -1,0 +1,433 @@
+$ git submodule update --remote vendor/honcho
+
+$ cp honcho/.env.honcho.example .env.honcho
+
+Created .env.honcho from example (placeholder keys).
+$ docker compose -f docker-compose.honcho.yml config
+name: stackdeploy
+services:
+  honcho-api:
+    build:
+      context: /home/j1admin/StackDeploy/vendor/honcho
+      dockerfile: docker/Dockerfile
+    depends_on:
+      honcho-db:
+        condition: service_healthy
+        required: true
+      honcho-redis:
+        condition: service_healthy
+        required: true
+    entrypoint:
+      - sh
+      - docker/entrypoint.sh
+    environment:
+      CACHE_ENABLED: "true"
+      DB_CONNECTION_URI: postgresql+psycopg://honcho:REPLACE_WITH_SECURE_PASSWORD@honcho-db:5432/honcho
+      LLM_EMBEDDING_API_KEY: your-primary-api-key
+      LLM_EMBEDDING_BASE_URL: https://openrouter.ai/api/v1
+      LLM_EMBEDDING_MODEL: openai/text-embedding-3-small
+      LLM_OPENAI_API_KEY: your-primary-api-key
+      LLM_OPENAI_COMPATIBLE_API_KEY: your-backup-api-key
+      LLM_VLLM_API_KEY: your-primary-api-key
+      LLM_VLLM_BASE_URL: https://openrouter.ai/api/v1
+      METRICS_ENABLED: "false"
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8000
+        published: "8000"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: /home/j1admin/StackDeploy/honcho/config.toml
+        target: /app/config.toml
+        read_only: true
+        bind: {}
+  honcho-db:
+    command:
+      - postgres
+      - -c
+      - max_connections=200
+    container_name: honcho-db
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: honcho
+      POSTGRES_PASSWORD: REPLACE_WITH_SECURE_PASSWORD
+      POSTGRES_USER: honcho
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U honcho -d honcho
+      timeout: 5s
+      interval: 5s
+      retries: 5
+    image: pgvector/pgvector:pg15
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5432
+        published: "5432"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: honcho-pgdata
+        target: /var/lib/postgresql/data
+        volume: {}
+  honcho-redis:
+    container_name: honcho-redis
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli ping
+      timeout: 5s
+      interval: 5s
+      retries: 5
+    image: redis:8.2
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 6379
+        published: "6379"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: honcho-redis-data
+        target: /data
+        volume: {}
+networks:
+  default:
+    name: stackdeploy_default
+volumes:
+  honcho-pgdata:
+    name: stackdeploy_honcho-pgdata
+  honcho-redis-data:
+    name: stackdeploy_honcho-redis-data
+$ docker compose -f docker-compose.honcho.yml up -d
+Image pgvector/pgvector:pg15 Pulling 
+ Image redis:8.2 Pulling 
+ 2ab4753a9d2b Pulling fs layer 0B
+ eae7c104ca7e Pulling fs layer 0B
+ b9136609bef0 Pulling fs layer 0B
+ 2e572ee2eccf Pulling fs layer 0B
+ 399305ff9aa0 Pulling fs layer 0B
+ 891f131f9910 Pulling fs layer 0B
+ 20054606095c Pulling fs layer 0B
+ 9dda1e253f7b Pulling fs layer 0B
+ a2a5efe0a77b Pulling fs layer 0B
+ b2917e46a57a Pulling fs layer 0B
+ ad1e657a3394 Pulling fs layer 0B
+ 803cc21ec237 Pulling fs layer 0B
+ 7e631f7ffe5b Pulling fs layer 0B
+ 19efa2117d2c Pulling fs layer 0B
+ e16f286e2de6 Pulling fs layer 0B
+ 125e5f09c80a Pulling fs layer 0B
+ 20054606095c Downloading 116B
+ 9dda1e253f7b Download complete 0B
+ 399305ff9aa0 Download complete 0B
+ 20054606095c Download complete 0B
+ 5936dbf9cc98 Pulling fs layer 0B
+ 17a3c7acdf3e Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 31006508d6d5 Pulling fs layer 0B
+ 68629629b516 Pulling fs layer 0B
+ 9468997d505d Pulling fs layer 0B
+ 41f6b7d9f04f Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ 125e5f09c80a Downloading 4.534MB
+ ad1e657a3394 Download complete 0B
+ b9136609bef0 Downloading 8.389MB
+ e16f286e2de6 Download complete 0B
+ 803cc21ec237 Download complete 0B
+ b2917e46a57a Download complete 0B
+ 7e631f7ffe5b Download complete 0B
+ eae7c104ca7e Download complete 0B
+ 19efa2117d2c Download complete 0B
+ 2e572ee2eccf Downloading 5.243MB
+ 891f131f9910 Downloading 8.067MB
+ 2ab4753a9d2b Download complete 0B
+ a2a5efe0a77b Download complete 0B
+ 2e572ee2eccf Downloading 6.291MB
+ 891f131f9910 Downloading 8.067MB
+ 125e5f09c80a Downloading 4.534MB
+ b9136609bef0 Downloading 10.49MB
+ 1cf7610c5d50 Downloading 27.11kB
+ b9136609bef0 Downloading 14.68MB
+ 2e572ee2eccf Downloading 8.389MB
+ 891f131f9910 Downloading 8.067MB
+ 125e5f09c80a Downloading 4.534MB
+ c1b7e2ffaa53 Downloading 1.049MB
+ 1cf7610c5d50 Downloading 27.11kB
+ 17a3c7acdf3e Downloading 97B
+ c1b7e2ffaa53 Downloading 2.372MB
+ 5936dbf9cc98 Downloading 2.112kB
+ 1cf7610c5d50 Download complete 0B
+ 2e572ee2eccf Downloading 11.53MB
+ 891f131f9910 Download complete 0B
+ 125e5f09c80a Download complete 0B
+ b9136609bef0 Downloading 16.78MB
+ b9136609bef0 Downloading 19.92MB
+ 2e572ee2eccf Downloading 14.68MB
+ 41f6b7d9f04f Download complete 0B
+ 17a3c7acdf3e Download complete 0B
+ 31006508d6d5 Downloading 1.049MB
+ c1b7e2ffaa53 Download complete 0B
+ 5936dbf9cc98 Download complete 0B
+ 9468997d505d Download complete 0B
+ b9136609bef0 Downloading 24.12MB
+ 2e572ee2eccf Downloading 17.83MB
+ 31006508d6d5 Downloading 4.194MB
+ b9136609bef0 Downloading 27.26MB
+ d082ba5ce169 Download complete 0B
+ 2e572ee2eccf Downloading 21.01MB
+ 68629629b516 Downloading 1.049MB
+ 31006508d6d5 Downloading 7.34MB
+ b9136609bef0 Downloading 28.24MB
+ 2e572ee2eccf Downloading 24.12MB
+ 68629629b516 Downloading 4.194MB
+ 31006508d6d5 Downloading 11.53MB
+ 2e572ee2eccf Downloading 28.31MB
+ b9136609bef0 Download complete 0B
+ 68629629b516 Downloading 6.291MB
+ 31006508d6d5 Downloading 14.68MB
+ 68629629b516 Downloading 9.437MB
+ 31006508d6d5 Downloading 18.87MB
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 31.46MB
+ 68629629b516 Downloading 12.58MB
+ 31006508d6d5 Downloading 22.02MB
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 36.7MB
+ 68629629b516 Downloading 15.73MB
+ 31006508d6d5 Downloading 24.59MB
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 40.89MB
+ 31006508d6d5 Downloading 24.59MB
+ 68629629b516 Downloading 19.92MB
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 44.04MB
+ 68629629b516 Downloading 24.12MB
+ 31006508d6d5 Download complete 0B
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 47.19MB
+ 68629629b516 Downloading 27.26MB
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 50.33MB
+ 68629629b516 Downloading 28.24MB
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 53.48MB
+ 68629629b516 Downloading 28.24MB
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 56.62MB
+ 68629629b516 Download complete 0B
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 60.82MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 63.96MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 1B
+ 2e572ee2eccf Downloading 68.16MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 71.3MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 75.5MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 78.64MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 82.84MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 85.98MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 90.18MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 94.37MB
+ 68629629b516 Extracting 1B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 98.57MB
+ 68629629b516 Extracting 2B
+ b9136609bef0 Extracting 2B
+ 2e572ee2eccf Downloading 100.7MB
+ 68629629b516 Extracting 2B
+ 68629629b516 Extracting 2B
+ b9136609bef0 Extracting 3B
+ 2e572ee2eccf Downloading 103.8MB
+ b9136609bef0 Extracting 3B
+ 2e572ee2eccf Downloading 107MB
+ 68629629b516 Extracting 2B
+ b9136609bef0 Extracting 3B
+ 2e572ee2eccf Downloading 109.7MB
+ 68629629b516 Extracting 2B
+ 2e572ee2eccf Downloading 109.7MB
+ 68629629b516 Extracting 2B
+ 2e572ee2eccf Downloading 109.7MB
+ 68629629b516 Extracting 2B
+ b9136609bef0 Pull complete 0B
+ 2e572ee2eccf Downloading 109.7MB
+ 68629629b516 Extracting 2B
+ 2e572ee2eccf Downloading 109.7MB
+ 68629629b516 Extracting 2B
+ 125e5f09c80a Extracting 1B
+ 2e572ee2eccf Download complete 0B
+ 68629629b516 Extracting 2B
+ b2917e46a57a Pull complete 0B
+ 125e5f09c80a Extracting 1B
+ 68629629b516 Extracting 2B
+ 125e5f09c80a Extracting 1B
+ 68629629b516 Extracting 3B
+ 125e5f09c80a Extracting 1B
+ 68629629b516 Extracting 3B
+ 125e5f09c80a Pull complete 0B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 3B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 4B
+ 68629629b516 Extracting 5B
+ 68629629b516 Pull complete 0B
+ a2a5efe0a77b Extracting 1B
+ a2a5efe0a77b Extracting 1B
+ a2a5efe0a77b Extracting 1B
+ a2a5efe0a77b Extracting 1B
+ a2a5efe0a77b Extracting 1B
+ a2a5efe0a77b Pull complete 0B
+ 41f6b7d9f04f Pull complete 0B
+ 9468997d505d Pull complete 0B
+ 891f131f9910 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 891f131f9910 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 891f131f9910 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 891f131f9910 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 891f131f9910 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 891f131f9910 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 891f131f9910 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 891f131f9910 Pull complete 0B
+ 31006508d6d5 Extracting 1B
+ ad1e657a3394 Extracting 1B
+ 31006508d6d5 Extracting 1B
+ 20054606095c Pull complete 0B
+ ad1e657a3394 Pull complete 0B
+ 31006508d6d5 Extracting 1B
+ eae7c104ca7e Pull complete 0B
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 1B
+ 31006508d6d5 Pull complete 0B
+ 2e572ee2eccf Extracting 1B
+ 4f4fb700ef54 Extracting 1B
+ 17a3c7acdf3e Pull complete 0B
+ 2e572ee2eccf Extracting 1B
+ 4f4fb700ef54 Pull complete 0B
+ 5936dbf9cc98 Pull complete 0B
+ Image redis:8.2 Pulled 
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 1B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 2B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 3B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 4B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 5B
+ 2e572ee2eccf Extracting 6B
+ 2e572ee2eccf Extracting 6B
+ 9dda1e253f7b Pull complete 0B
+ 2e572ee2eccf Pull complete 0B
+ 7e631f7ffe5b Pull complete 0B
+ 19efa2117d2c Pull complete 0B
+ 399305ff9aa0 Pull complete 0B
+ e16f286e2de6 Pull complete 0B
+ 803cc21ec237 Extracting 1B
+ 803cc21ec237 Pull complete 0B
+ 2ab4753a9d2b Extracting 1B
+ 2ab4753a9d2b Pull complete 0B
+ Image pgvector/pgvector:pg15 Pulled 
+ Image stackdeploy-honcho-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 561B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2B done
+#2 DONE 0.1s
+failed to solve: failed to read dockerfile: open Dockerfile: no such file or directory
+[Command exited with code 1]
+Waiting 60 seconds for containers to become healthy...
+$ docker compose -f docker-compose.honcho.yml ps
+NAME              IMAGE                                   COMMAND                  SERVICE    CREATED      STATUS                    PORTS
+camofox-browser   ghcr.io/jo-inc/camofox-browser:latest   "docker-entrypoint.s…"   camofox    2 days ago   Up 14 hours (healthy)     0.0.0.0:9377->9377/tcp, [::]:9377->9377/tcp
+obsidian          sytone/obsidian-remote:latest           "/init"                  obsidian   2 days ago   Up 14 hours (healthy)     3000-3001/tcp, 8443/tcp, 0.0.0.0:8083->8080/tcp, [::]:8083->8080/tcp
+qdrant            qdrant/qdrant:latest                    "./entrypoint.sh"        qdrant     2 days ago   Up 14 hours               0.0.0.0:6333->6333/tcp, [::]:6333->6333/tcp, 6334/tcp
+searxng           searxng/searxng:latest                  "/usr/local/searxng/…"   searxng    2 days ago   Up 14 hours (unhealthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+$ docker compose -f docker-compose.honcho.yml logs --tail=150
+
+$ curl -s http://localhost:8000/openapi.json | head -1
+{"detail":"Not Found"}

@@ -1,0 +1,178 @@
+# Honcho — self-hosted with configurable LLM providers
+#
+# Data sovereignty: all memory/state stays on this VM (PostgreSQL + Redis).
+#
+# PROVIDER STRATEGY:
+#   Primary: "vllm" slot (any OpenAI-compatible API, default: OpenRouter)
+#   Backup:  "custom" slot (optional, kicks in on final retry)
+#
+# MODEL TIERS (chosen for function-calling reliability):
+#   Light:  z-ai/glm-4.7-flash  — 79.5% tau-bench, fast, cheap
+#   Medium: x-ai/grok-4.1-fast  — purpose-built for tool use, 2M context
+#   Heavy:  z-ai/glm-5          — 89.7% tau2-bench, best agentic scores
+#
+#   THINKING_BUDGET_TOKENS = 1 (these providers don't support Anthropic thinking)
+
+[app]
+LOG_LEVEL = "INFO"
+SESSION_OBSERVERS_LIMIT = 10
+GET_CONTEXT_MAX_TOKENS = 100000
+MAX_FILE_SIZE = 5242880
+MAX_MESSAGE_SIZE = 25000
+EMBED_MESSAGES = true
+MAX_EMBEDDING_TOKENS = 8192
+NAMESPACE = "honcho"
+
+[db]
+CONNECTION_URI = "postgresql+psycopg://honcho:honcho@database:5432/honcho"
+SCHEMA = "public"
+POOL_SIZE = 10
+MAX_OVERFLOW = 20
+POOL_TIMEOUT = 30
+POOL_RECYCLE = 300
+
+[auth]
+USE_AUTH = false
+
+[cache]
+ENABLED = true
+URL = "redis://redis:6379/0?suppress=true"
+DEFAULT_TTL_SECONDS = 300
+
+# ---------------------------------------------------------------------------
+# LLM providers
+#   "vllm"   = primary   — set in .env: LLM_VLLM_API_KEY + LLM_VLLM_BASE_URL
+#   "custom"  = backup    — set in .env: LLM_OPENAI_COMPATIBLE_API_KEY
+# ---------------------------------------------------------------------------
+[llm]
+DEFAULT_MAX_TOKENS = 2500
+EMBEDDING_PROVIDER = "openrouter"
+
+# Embedding key, URL, and model are set via env vars (LLM_EMBEDDING_*)
+# so they can differ per deployment without editing this file.
+# If LLM_EMBEDDING_API_KEY is empty, falls back to LLM_OPENAI_COMPATIBLE_API_KEY.
+# If LLM_EMBEDDING_BASE_URL is empty, falls back to OPENAI_COMPATIBLE_BASE_URL below.
+
+# Backup provider base URL (set in .env or overridden by setup script)
+OPENAI_COMPATIBLE_BASE_URL = "https://api.venice.ai/api/v1"
+
+# ---------------------------------------------------------------------------
+# Deriver — observation extraction (runs every message, needs speed + tools)
+# ---------------------------------------------------------------------------
+[deriver]
+ENABLED = true
+WORKERS = 1
+POLLING_SLEEP_INTERVAL_SECONDS = 1.0
+STALE_SESSION_TIMEOUT_MINUTES = 5
+PROVIDER = "vllm"
+MODEL = "z-ai/glm-4.7-flash"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "zai-org-glm-4.7-flash"
+DEDUPLICATE = true
+MAX_OUTPUT_TOKENS = 4096
+THINKING_BUDGET_TOKENS = 1
+MAX_INPUT_TOKENS = 23000
+WORKING_REPRESENTATION_MAX_OBSERVATIONS = 100
+REPRESENTATION_BATCH_MAX_TOKENS = 1024
+FLUSH_ENABLED = false
+
+# ---------------------------------------------------------------------------
+# Dialectic — multi-level reasoning for peer.chat
+# ---------------------------------------------------------------------------
+[dialectic]
+MAX_OUTPUT_TOKENS = 8192
+MAX_INPUT_TOKENS = 100000
+HISTORY_TOKEN_LIMIT = 8192
+SESSION_HISTORY_MAX_TOKENS = 4096
+
+[dialectic.levels.minimal]
+PROVIDER = "vllm"
+MODEL = "z-ai/glm-4.7-flash"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "zai-org-glm-4.7-flash"
+THINKING_BUDGET_TOKENS = 1
+MAX_TOOL_ITERATIONS = 1
+MAX_OUTPUT_TOKENS = 250
+
+[dialectic.levels.low]
+PROVIDER = "vllm"
+MODEL = "z-ai/glm-4.7-flash"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "zai-org-glm-4.7-flash"
+THINKING_BUDGET_TOKENS = 1
+MAX_TOOL_ITERATIONS = 5
+
+[dialectic.levels.medium]
+PROVIDER = "vllm"
+MODEL = "x-ai/grok-4.1-fast"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "grok-41-fast"
+THINKING_BUDGET_TOKENS = 1
+MAX_TOOL_ITERATIONS = 2
+
+[dialectic.levels.high]
+PROVIDER = "vllm"
+MODEL = "x-ai/grok-4.1-fast"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "grok-41-fast"
+THINKING_BUDGET_TOKENS = 1
+MAX_TOOL_ITERATIONS = 4
+
+[dialectic.levels.max]
+PROVIDER = "vllm"
+MODEL = "z-ai/glm-5"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "zai-org-glm-5"
+THINKING_BUDGET_TOKENS = 1
+MAX_TOOL_ITERATIONS = 10
+
+# ---------------------------------------------------------------------------
+# Summary — session summarization
+# ---------------------------------------------------------------------------
+[summary]
+ENABLED = true
+MESSAGES_PER_SHORT_SUMMARY = 20
+MESSAGES_PER_LONG_SUMMARY = 60
+PROVIDER = "vllm"
+MODEL = "z-ai/glm-4.7-flash"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "zai-org-glm-4.7-flash"
+MAX_TOKENS_SHORT = 1000
+MAX_TOKENS_LONG = 4000
+THINKING_BUDGET_TOKENS = 1
+
+# ---------------------------------------------------------------------------
+# Dream — memory consolidation (runs rarely, needs best quality)
+# ---------------------------------------------------------------------------
+[dream]
+ENABLED = true
+DOCUMENT_THRESHOLD = 50
+IDLE_TIMEOUT_MINUTES = 60
+MIN_HOURS_BETWEEN_DREAMS = 8
+ENABLED_TYPES = ["omni"]
+PROVIDER = "vllm"
+MODEL = "z-ai/glm-5"
+BACKUP_PROVIDER = "custom"
+BACKUP_MODEL = "zai-org-glm-5"
+MAX_OUTPUT_TOKENS = 16384
+THINKING_BUDGET_TOKENS = 1
+MAX_TOOL_ITERATIONS = 20
+HISTORY_TOKEN_LIMIT = 16384
+DEDUCTION_MODEL = "x-ai/grok-4.1-fast"
+INDUCTION_MODEL = "x-ai/grok-4.1-fast"
+
+[peer_card]
+ENABLED = true
+
+[vector_store]
+TYPE = "pgvector"
+DIMENSIONS = 1536
+
+[metrics]
+ENABLED = false
+
+[telemetry]
+ENABLED = false
+
+[sentry]
+ENABLED = false

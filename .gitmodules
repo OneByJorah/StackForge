@@ -1,0 +1,3 @@
+[submodule "vendor/honcho"]
+	path = vendor/honcho
+	url = https://github.com/plastic-labs/honcho.git

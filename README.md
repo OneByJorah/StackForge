@@ -231,30 +231,29 @@ StackDeploy ships a first-class Hermes Agent skill.
 
 Local install path for Hermes:
 ```bash
-~/.hermes/skills/devops/stackdeploy/SKILL.md
+~/.hermes/profiles/agent-20260614-212330/skills/autonomous-ai-agents/selfhosted-stack-deploy/SKILL.md
 ```
 
-Inline commands Hermes uses with this stack:
+Inline Hermes commands:
 ```bash
-# Health
 cd /home/j1admin/StackDeploy && bash tests/smoke.sh
-
-# JSON search
+docker compose ps
 curl -s 'http://localhost:8080/search?format=json&q=<query>&language=en'
+cd /home/j1admin/StackDeploy/browser-search && bash scripts/install-browser-search.sh
+node scripts/cloak/cloak-fetch.mjs "https://example.com"
+```
 
-# Browser automation
-cd /home/j1admin/StackDeploy/browser-search && node scripts/cloak/cloak-fetch.mjs "https://example.com"
+Hermes config:
+```yaml
+web:
+  backend: searxng
+  searxng_url: "http://127.0.0.1:8080"
 ```
 
 Docs:
 ```bash
 cat docs/hermes.md
 ```
-
-Script paths used by the Hermes skill:
-- `tests/smoke.sh`
-- `browser-search/scripts/cloak/cloak-fetch.mjs`
-- `scripts/init-obsidian.sh`
 
 ---
 
