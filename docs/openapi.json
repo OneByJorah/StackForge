@@ -1,0 +1,394 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "StackDeploy API",
+    "description": "API documentation for all StackDeploy services — SearXNG, Camofox, Honcho, Qdrant, and Obsidian.",
+    "version": "3.0.0",
+    "contact": {
+      "name": "JorahOne Services",
+      "url": "https://github.com/JorahOne-Services/StackDeploy"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "SearXNG — Privacy-respecting metasearch"
+    },
+    {
+      "url": "http://localhost:9377",
+      "description": "Camofox — Stealth browser automation"
+    },
+    {
+      "url": "http://localhost:8081",
+      "description": "Honcho — Long-term memory API"
+    },
+    {
+      "url": "http://localhost:6333",
+      "description": "Qdrant — Vector database"
+    },
+    {
+      "url": "http://localhost:8083",
+      "description": "Obsidian — Remote vault web UI"
+    }
+  ],
+  "paths": {
+    "/search": {
+      "get": {
+        "summary": "Search the web via SearXNG",
+        "description": "Privacy-respecting metasearch across multiple engines.",
+        "tags": ["SearXNG"],
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Search query" },
+          { "name": "format", "in": "query", "schema": { "type": "string", "default": "json" }, "description": "Response format (json, html, csv)" },
+          { "name": "language", "in": "query", "schema": { "type": "string", "default": "en" }, "description": "Search language code" },
+          { "name": "categories", "in": "query", "schema": { "type": "string" }, "description": "Search categories (general, news, images, etc.)" },
+          { "name": "pageno", "in": "query", "schema": { "type": "integer", "default": 1 }, "description": "Page number" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "query": { "type": "string" },
+                    "number_of_results": { "type": "integer" },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": { "type": "string" },
+                          "url": { "type": "string", "format": "uri" },
+                          "content": { "type": "string" },
+                          "engine": { "type": "string" },
+                          "score": { "type": "number" }
+                        }
+                      }
+                    },
+                    "infoboxes": { "type": "array" },
+                    "suggestions": { "type": "array" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Camofox health check",
+        "tags": ["Camofox"],
+        "responses": {
+          "200": { "description": "Service is healthy" }
+        }
+      }
+    },
+    "/tabs": {
+      "post": {
+        "summary": "Create a new browser tab",
+        "tags": ["Camofox"],
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId", "url"],
+                "properties": {
+                  "userId": { "type": "string", "description": "User identifier" },
+                  "sessionKey": { "type": "string", "default": "default" },
+                  "url": { "type": "string", "format": "uri", "description": "URL to navigate to" },
+                  "options": {
+                    "type": "object",
+                    "properties": {
+                      "viewport": {
+                        "type": "object",
+                        "properties": {
+                          "width": { "type": "integer", "default": 1280 },
+                          "height": { "type": "integer", "default": 720 }
+                        }
+                      },
+                      "stealth": { "type": "boolean", "default": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tab created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tabId": { "type": "string" },
+                    "url": { "type": "string" },
+                    "status": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tabs/{tabId}/snapshot": {
+      "get": {
+        "summary": "Get page snapshot from a tab",
+        "tags": ["Camofox"],
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "tabId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "userId", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": { "type": "string" },
+                    "title": { "type": "string" },
+                    "content": { "type": "string" },
+                    "screenshot": { "type": "string", "format": "base64" },
+                    "links": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tabs/{tabId}": {
+      "delete": {
+        "summary": "Close a browser tab",
+        "tags": ["Camofox"],
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "tabId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "userId", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Tab closed" }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Honcho API health check",
+        "tags": ["Honcho"],
+        "responses": {
+          "200": { "description": "Service is healthy" }
+        }
+      }
+    },
+    "/api/v1/memory": {
+      "post": {
+        "summary": "Store a memory",
+        "tags": ["Honcho"],
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "text": { "type": "string", "description": "Memory content" },
+                  "metadata": { "type": "object", "description": "Optional metadata" },
+                  "workspace": { "type": "string", "description": "Workspace identifier" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Memory stored" }
+        }
+      },
+      "get": {
+        "summary": "Retrieve memories",
+        "tags": ["Honcho"],
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "query", "in": "query", "schema": { "type": "string" }, "description": "Search query" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "workspace", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memories retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "memories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "text": { "type": "string" },
+                          "metadata": { "type": "object" },
+                          "created_at": { "type": "string", "format": "date-time" },
+                          "score": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections": {
+      "get": {
+        "summary": "List Qdrant collections",
+        "tags": ["Qdrant"],
+        "responses": {
+          "200": {
+            "description": "List of collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "status": { "type": "string" },
+                          "vectors_count": { "type": "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/collections/{collection_name}/points": {
+      "put": {
+        "summary": "Upsert points to a collection",
+        "tags": ["Qdrant"],
+        "parameters": [
+          { "name": "collection_name", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "points": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "vector": { "type": "array", "items": { "type": "number" } },
+                        "payload": { "type": "object" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Points upserted" }
+        }
+      },
+      "post": {
+        "summary": "Search points in a collection",
+        "tags": ["Qdrant"],
+        "parameters": [
+          { "name": "collection_name", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vector": { "type": "array", "items": { "type": "number" } },
+                  "limit": { "type": "integer", "default": 10 },
+                  "filter": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "score": { "type": "number" },
+                          "payload": { "type": "object" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Camofox API key for browser automation"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Honcho API bearer token"
+      }
+    }
+  },
+  "tags": [
+    { "name": "SearXNG", "description": "Privacy-respecting metasearch engine" },
+    { "name": "Camofox", "description": "Stealth browser automation API" },
+    { "name": "Honcho", "description": "Long-term memory API for AI agents" },
+    { "name": "Qdrant", "description": "Vector database for similarity search" }
+  ]
+}

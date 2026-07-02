@@ -1,145 +1,484 @@
+# =============================================================================
+# StackDeploy — Production Docker Compose Stack
+# Version: 3.0.0
+# Security-hardened, observability-enabled, multi-service deployment
+# =============================================================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+    tag: "{{.Name}}|{{.ImageName}}|{{.ID}}"
+
+x-restart: &restart-policy
+  restart: unless-stopped
+
+x-healthcheck: &default-healthcheck
+  interval: 15s
+  timeout: 5s
+  retries: 5
+  start_period: 15s
+
+x-security: &default-security
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  read_only: true
+  tmpfs:
+    - /tmp
+
+x-security-net: &security-net
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+networks:
+  frontend:
+    name: stackdeploy-frontend
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.20.0.0/24"
+  backend:
+    name: stackdeploy-backend
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: "172.20.1.0/24"
+  monitoring:
+    name: stackdeploy-monitoring
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: "172.20.2.0/24"
+
+secrets:
+  honcho_db_password:
+    file: ./secrets/honcho_db_password.txt
+  camofox_api_key:
+    file: ./secrets/camofox_api_key.txt
+  camofox_admin_key:
+    file: ./secrets/camofox_admin_key.txt
+  searxng_secret_key:
+    file: ./secrets/searxng_secret_key.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+
+volumes:
+  searxng-data:
+    name: stackdeploy_searxng_data
+  camofox-data:
+    name: stackdeploy_camofox_data
+  obsidian-vault:
+    name: stackdeploy_obsidian_vault
+  qdrant-data:
+    name: stackdeploy_qdrant_data
+  honcho-postgres:
+    name: stackdeploy_honcho_postgres
+  honcho-redis:
+    name: stackdeploy_honcho_redis
+  honcho-data:
+    name: stackdeploy_honcho_data
+  prometheus-data:
+    name: stackdeploy_prometheus_data
+  grafana-data:
+    name: stackdeploy_grafana_data
+  loki-data:
+    name: stackdeploy_loki_data
+
 services:
-  # --- Search ---
+  # ===========================================================================
+  # SEARCH & BROWSER
+  # ===========================================================================
+
   searxng:
-    image: searxng/searxng:latest
-    container_name: searxng
+    image: searxng/searxng:2025.04.1-3e1e2f0e
+    container_name: stackdeploy-searxng
+    <<: *restart-policy
+    <<: *default-logging
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
-      - searxng-data:/etc/searxng
-      - ./searxng/settings.yml:/etc/searxng/settings.yml
+      - searxng-data:/etc/searxng:rw
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080
+      - SEARXNG_SECRET_KEY_FILE=/run/secrets/searxng_secret_key
+      - SEARXNG_BIND_ADDRESS=0.0.0.0
+    secrets:
+      - searxng_secret_key
     healthcheck:
       test: ["CMD-SHELL", "curl -sf 'http://localhost:8080/search?q=healthcheck&format=json' || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      <<: *default-healthcheck
+    networks:
+      - frontend
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
 
-  # --- Browser automation (browser-search: Camofox) ---
   camofox:
-    image: ghcr.io/jo-inc/camofox-browser:latest
-    container_name: camofox-browser
+    image: ghcr.io/jo-inc/camofox-browser:1.2.0
+    container_name: stackdeploy-camofox
+    <<: *restart-policy
+    <<: *default-logging
     shm_size: 2g
     ports:
-      - "9377:9377"
+      - "127.0.0.1:9377:9377"
     environment:
-      CAMOFOX_API_KEY: ${CAMOFOX_API_KEY:-}
-      CAMOFOX_ADMIN_KEY: ${CAMOFOX_ADMIN_KEY:-}
+      CAMOFOX_API_KEY_FILE: /run/secrets/camofox_api_key
+      CAMOFOX_ADMIN_KEY_FILE: /run/secrets/camofox_admin_key
+    secrets:
+      - camofox_api_key
+      - camofox_admin_key
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9377/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      <<: *default-healthcheck
+    networks:
+      - frontend
+      - backend
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:seccomp/camofox.json
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
+    read_only: true
+    tmpfs:
+      - /tmp
 
-  # --- Notes ---
+  # ===========================================================================
+  # NOTES & DOCS
+  # ===========================================================================
+
   obsidian:
-    image: sytone/obsidian-remote:latest
-    container_name: obsidian
+    image: sytone/obsidian-remote:0.4.2
+    container_name: stackdeploy-obsidian
+    <<: *restart-policy
+    <<: *default-logging
     ports:
-      - "8083:8080"
+      - "127.0.0.1:8083:8080"
     volumes:
-      - ${OBSIDIAN_VAULT_PATH:-./obsidian-vault}:/vaults
+      - ${OBSIDIAN_VAULT_PATH:-./obsidian-vault}:/vaults:rw
     environment:
       FM_HOME: /vaults
+      NODE_ENV: production
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      <<: *default-healthcheck
+    networks:
+      - frontend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp
 
-  # --- Vector DB ---
+  # ===========================================================================
+  # VECTOR DATABASE
+  # ===========================================================================
+
   qdrant:
-    image: qdrant/qdrant:latest
-    container_name: qdrant
+    image: qdrant/qdrant:v1.13.6
+    container_name: stackdeploy-qdrant
+    <<: *restart-policy
+    <<: *default-logging
     ports:
-      - "6333:6333"
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
     volumes:
-      - qdrant-data:/qdrant/storage
-    restart: unless-stopped
+      - qdrant-data:/qdrant/storage:rw
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT__LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      <<: *default-healthcheck
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp
 
-  # --- Memory: Honcho (self-hosted, from upstream) ---
+  # ===========================================================================
+  # MEMORY: HONCHO (PostgreSQL + Redis + API)
+  # ===========================================================================
+
   honcho-db:
-    image: pgvector/pgvector:pg15
-    container_name: honcho-db
+    image: pgvector/pgvector:pg17
+    container_name: stackdeploy-honcho-db
+    <<: *restart-policy
+    <<: *default-logging
     environment:
       POSTGRES_USER: honcho
-      POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/secrets/honcho_db_password
       POSTGRES_DB: honcho
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - honcho-postgres:/var/lib/postgresql/data/
+      - honcho-postgres:/var/lib/postgresql/data:rw
+    secrets:
+      - honcho_db_password
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
 
   honcho-redis:
-    image: redis:8.2
-    container_name: honcho-redis
-    command: ["redis-server", "--bind", "0.0.0.0"]
+    image: redis:7.4.2-alpine
+    container_name: stackdeploy-honcho-redis
+    <<: *restart-policy
+    <<: *default-logging
+    command:
+      - redis-server
+      - --bind
+      - 0.0.0.0
+      - --requirepass
+      - ${REDIS_PASSWORD:-}
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
-      - honcho-redis:/data
+      - honcho-redis:/data:rw
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: unless-stopped
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp
 
   honcho:
     image: honcho-repo-api:latest
-    container_name: honcho
+    container_name: stackdeploy-honcho
+    <<: *restart-policy
+    <<: *default-logging
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     env_file:
       - .env
     environment:
-      DB_CONNECTION_URI: postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}@honcho-db:5432/honcho
-      REDIS_URL: redis://honcho-redis:6379/0
+      DB_CONNECTION_URI: postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-}@honcho-db:5432/honcho
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@honcho-redis:6379/0
       AUTH_USE_AUTH: "false"
       HONCHO_TOKEN: ${HONCHO_TOKEN:-}
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
     volumes:
-      - honcho-data:/app/data
+      - honcho-data:/app/data:rw
     depends_on:
       honcho-db:
         condition: service_healthy
       honcho-redis:
         condition: service_healthy
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/healthz || exit 1"]
+      <<: *default-healthcheck
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
 
-  # --- Optional: CloakBrowser for protected sites ---
+  # ===========================================================================
+  # OPTIONAL: CLOAK BROWSER (protected sites)
+  # ===========================================================================
+
   cloakbrowser:
     build:
       context: ./browser-search
       dockerfile: docker/Dockerfile.cloak
-    container_name: cloak-browser
+    container_name: stackdeploy-cloak
+    <<: *restart-policy
+    <<: *default-logging
     shm_size: 2g
     ports:
-      - "9222:9222"
+      - "127.0.0.1:9222:9222"
     environment:
       CLOAK_HEADLESS: "true"
+      CLOAK_LOG_LEVEL: info
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9222/json/version || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-    restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:seccomp/cloak.json
+    cap_drop:
+      - ALL
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN
 
-volumes:
-  searxng-data:
-  camofox-data:
-  obsidian-vault:
-  qdrant-data:
-  honcho-postgres:
-  honcho-redis:
-  honcho-data:
+  # ===========================================================================
+  # OBSERVABILITY STACK
+  # ===========================================================================
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: stackdeploy-prometheus
+    <<: *restart-policy
+    <<: *default-logging
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus:rw
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+      - --web.enable-lifecycle
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - monitoring
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: stackdeploy-grafana
+    <<: *restart-policy
+    <<: *default-logging
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana:rw
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3000
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: stackdeploy-loki
+    <<: *restart-policy
+    <<: *default-logging
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki:rw
+    command:
+      - -config.file=/etc/loki/loki-config.yml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - monitoring
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID

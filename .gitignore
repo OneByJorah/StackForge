@@ -1,10 +1,44 @@
+# Environment
 .env
 .env.local
+.env.*.local
+.env.honcho
+
+# Secrets
+secrets/
+
+# Logs
 *.log
+
+# Python
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+.venv/
+venv/
+
+# Node
+node_modules/
 browser-search/node_modules/
 
-# Honcho env
-.env.honcho
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+.docker/
+
+# Test artifacts
+/tmp/stackdeploy-*
+
+# Backup
+backups/
+*.tar.gz
+*.tgz

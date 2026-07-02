@@ -7,6 +7,7 @@ services:
     build:
       context: vendor/honcho
       dockerfile: Dockerfile
+    container_name: stackdeploy-honcho-api
     entrypoint: ["sh", "docker/entrypoint.sh"]
     depends_on:
       honcho-db:
@@ -14,20 +15,38 @@ services:
       honcho-redis:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env.honcho
     environment:
       - DB_CONNECTION_URI=postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-honcho}@honcho-db:5432/honcho
       - CACHE_ENABLED=true
       - METRICS_ENABLED=false
+      - LOG_LEVEL=INFO
+      - LOG_FORMAT=json
     volumes:
       - ./honcho/config.toml:/app/config.toml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     restart: unless-stopped
 
   honcho-db:
-    image: pgvector/pgvector:pg15
-    container_name: honcho-db
+    image: pgvector/pgvector:pg17
+    container_name: stackdeploy-honcho-db
     ports:
       - "127.0.0.1:5432:5432"
     command: ["postgres", "-c", "max_connections=200"]
@@ -37,26 +56,68 @@ services:
       - POSTGRES_PASSWORD=${HONCHO_DB_PASSWORD:-honcho}
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - honcho-pgdata:/var/lib/postgresql/data/
+      - honcho-pgdata:/var/lib/postgresql/data:rw
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    restart: unless-stopped
 
   honcho-redis:
-    image: redis:8.2
-    container_name: honcho-redis
+    image: redis:7.4.2-alpine
+    container_name: stackdeploy-honcho-redis
     ports:
       - "127.0.0.1:6379:6379"
+    command:
+      - redis-server
+      - --bind
+      - 0.0.0.0
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
-      - honcho-redis-data:/data
+      - honcho-redis-data:/data:rw
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    restart: unless-stopped
 
 volumes:
   honcho-pgdata:
+    name: stackdeploy_honcho_pgdata
   honcho-redis-data:
+    name: stackdeploy_honcho_redis_data
+
+networks:
+  backend:
+    name: stackdeploy-backend
+    external: true

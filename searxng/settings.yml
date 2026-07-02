@@ -1,12 +1,50 @@
+# SearXNG Configuration — StackDeploy
+# See https://docs.searxng.org/admin/settings/
 use_default_settings: true
+
+general:
+  instance_name: "StackDeploy SearXNG"
+  debug: false
+  privacypolicy_url: false
+  contact_url: false
+  enable_metrics: true
+
 server:
   bind_address: "0.0.0.0"
   port: 8080
-  secret_key: "stackdeploy-searxng"
+  secret_key: "${SEARXNG_SECRET_KEY}"
   public_instance: false
+  limiter: false
+  image_proxy: false
+  method: "GET"
+
 search:
   formats:
     - json
+    - html
   max_page: 5
   safesearch: 0
   default_lang: "en"
+  autocomplete: ""
+  language: "en"
+
+ui:
+  static_use_hash: true
+  default_theme: simple
+  default_locale: en
+  results_on_new_tab: false
+
+enabled_plugins:
+  - self_info
+  - tracker_url_remover
+  - search_on_category_select
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 30.0
+  useragent_suffix: ""
+  # Pool connections for performance
+  pool_connections: 100
+  pool_maxsize: 100
+  # Enable HTTP/2
+  enable_http2: true

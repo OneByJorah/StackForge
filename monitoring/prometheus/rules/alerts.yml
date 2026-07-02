@@ -1,0 +1,66 @@
+# =============================================================================
+# Prometheus Alert Rules — StackDeploy
+# =============================================================================
+groups:
+  - name: stackdeploy_alerts
+    interval: 30s
+    rules:
+      # Service down alerts
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.service }} is down"
+          description: "{{ $labels.service }} on {{ $labels.instance }} has been unreachable for more than 1 minute."
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{container!=""} / container_spec_memory_limit_bytes{container!=""} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.container }}"
+          description: "{{ $labels.container }} is using {{ $value | humanizePercentage }} of its memory limit."
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{container!=""}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.container }}"
+          description: "{{ $labels.container }} CPU usage is {{ $value | humanizePercentage }} over 5 minutes."
+
+      # Disk space prediction
+      - alert: DiskSpaceLow
+        expr: container_fs_usage_bytes{container!=""} / container_fs_limit_bytes{container!=""} > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space low on {{ $labels.container }}"
+          description: "{{ $labels.container }} is using {{ $value | humanizePercentage }} of its disk limit."
+
+      # Container restarts
+      - alert: ContainerRestarts
+        expr: rate(container_restarts_seconds_total{container!=""}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.container }} is restarting"
+          description: "{{ $labels.container }} has restarted {{ $value }} times in the last 15 minutes."
+
+      # Health check failures
+      - alert: HealthCheckFailing
+        expr: absent(container_health_status{container!=""} == 1)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Health check failing on {{ $labels.container }}"
+          description: "Container {{ $labels.container }} health check has been failing for more than 2 minutes."

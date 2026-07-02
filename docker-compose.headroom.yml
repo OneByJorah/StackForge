@@ -2,20 +2,23 @@ services:
   # --- Headroom / Aphrodite proxy + memory stack ---
   # Composite command:
   # docker compose -f docker-compose.yml -f docker-compose.headroom.yml up -d
+
   headroom-proxy:
     build:
       context: vendor/headroom
       dockerfile: Dockerfile
+    container_name: stackdeploy-headroom-proxy
     command: ["--host", "0.0.0.0"]
     ports:
-      - "8787:8787"
+      - "127.0.0.1:8787:8787"
     env_file:
       - .env.headroom
     environment:
       - HEADROOM_HOST=0.0.0.0
       - OPENAI_TARGET_API_URL=${HEADROOM_OPENAI_TARGET_API_URL:-}
+      - LOG_LEVEL=info
     volumes:
-      - headroom_workspace:/home/nonroot/.headroom
+      - headroom_workspace:/home/nonroot/.headroom:rw
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8787/readyz || exit 1"]
       interval: 30s
@@ -27,34 +30,55 @@ services:
         condition: service_healthy
       headroom-neo4j:
         condition: service_healthy
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     restart: unless-stopped
 
   headroom-qdrant:
-    image: qdrant/qdrant:v1.17.1
-    container_name: headroom-qdrant
+    image: qdrant/qdrant:v1.13.6
+    container_name: stackdeploy-headroom-qdrant
     ports:
       - "127.0.0.1:6333:6333"
       - "127.0.0.1:6334:6334"
     volumes:
-      - headroom-qdrant-data:/qdrant/storage
+      - headroom-qdrant-data:/qdrant/storage:rw
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__LOG_LEVEL=INFO
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:6333/healthz || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 20s
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     restart: unless-stopped
 
   headroom-neo4j:
     image: neo4j:5.26
-    container_name: headroom-neo4j
+    container_name: stackdeploy-headroom-neo4j
     ports:
       - "127.0.0.1:7474:7474"
       - "127.0.0.1:7687:7687"
     volumes:
-      - headroom-neo4j-data:/data
+      - headroom-neo4j-data:/data:rw
     environment:
       - NEO4J_AUTH=${NEO4J_AUTH:-neo4j/CHANGEME}
       - NEO4J_PLUGINS=["apoc"]
@@ -67,9 +91,27 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     restart: unless-stopped
 
 volumes:
   headroom_workspace:
+    name: stackdeploy_headroom_workspace
   headroom-qdrant-data:
+    name: stackdeploy_headroom_qdrant_data
   headroom-neo4j-data:
+    name: stackdeploy_headroom_neo4j_data
+
+networks:
+  backend:
+    name: stackdeploy-backend
+    external: true

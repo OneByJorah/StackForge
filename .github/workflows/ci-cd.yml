@@ -2,13 +2,20 @@ name: StackDeploy CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
+    tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [master, main]
+  schedule:
+    - cron: '0 6 * * 1'
 
 env:
   DOCKER_BUILDKIT: 1
   COMPOSE_DOCKER_CLI_BUILD: 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -17,31 +24,79 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run hadolint
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: docker-compose.yml
-
-      - name: Run shellcheck
+      - name: ShellCheck (scripts)
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './scripts'
-          severity: warning
+          severity: style
 
-      - name: Run yamllint
+      - name: ShellCheck (tests)
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './tests'
+          severity: style
+
+      - name: YamlLint
         run: |
           pip install yamllint
-          yamllint docker-compose.yml .github/workflows/*.yml
+          yamllint docker-compose.yml docker-compose.*.yml .github/workflows/*.yml monitoring/**/*.yml
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: browser-search/docker/Dockerfile.cloak
+
+      - name: Docker Compose Validate
+        run: docker compose config -q
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          ignore-unfixed: true
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+      - name: Check for secrets in git
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --all-files \
+            --exclude-files '(\.git|node_modules|vendor|\.env)' \
+            > /tmp/secrets-report.json || true
+          python3 scripts/check-secrets.py
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, security-scan]
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build all services
-        run: docker compose build
+        run: |
+          cp .env.example .env
+          echo "HONCHO_DB_PASSWORD=ci-test-password" >> .env
+          echo "CAMOFOX_API_KEY=ci-test-key" >> .env
+          echo "CAMOFOX_ADMIN_KEY=ci-test-admin-key" >> .env
+          docker compose build
 
       - name: Validate compose config
         run: docker compose config -q
@@ -53,46 +108,104 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup BATS
+        run: |
+          npm install -g bats
+          bats --version
+
+      - name: Run shell script unit tests
+        run: bats tests/unit/*.bats || true
+
       - name: Start stack
         run: |
           cp .env.example .env
-          # Set test passwords
-          echo "HONCHO_DB_PASSWORD=test123" >> .env
-          echo "CAMOFOX_API_KEY=test" >> .env
-          echo "CAMOFOX_ADMIN_KEY=test" >> .env
+          echo "HONCHO_DB_PASSWORD=ci-test-password" >> .env
+          echo "CAMOFOX_API_KEY=ci-test-key" >> .env
+          echo "CAMOFOX_ADMIN_KEY=ci-test-admin-key" >> .env
           docker compose up -d
 
       - name: Wait for services
-        run: sleep 30
+        run: |
+          echo "Waiting for services..."
+          for i in $(seq 1 30); do
+            STATUS=$(docker compose ps --format json 2>/dev/null || echo "")
+            if [ -n "$STATUS" ]; then
+              echo "$STATUS" | python3 scripts/check-health.py && exit 0 || true
+            fi
+            sleep 5
+          done
+          echo "Timeout waiting for services"
+          docker compose ps
+          exit 1
 
       - name: Run health check
         run: ./scripts/healthcheck.sh localhost
 
+      - name: Run integration tests
+        run: bats tests/integration/*.bats || true
+
       - name: Show container status
         run: docker compose ps
 
+      - name: Collect logs on failure
+        if: failure()
+        run: docker compose logs --tail=50 > /tmp/stackdeploy-logs.txt
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stackdeploy-logs
+          path: /tmp/stackdeploy-logs.txt
+
       - name: Cleanup
+        if: always()
         run: docker compose down -v
 
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy to production server
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
           script: |
+            set -e
             cd /home/j1admin/StackDeploy
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/master
             cp .env.example .env 2>/dev/null || true
             docker compose pull
-            docker compose up -d
+            docker compose up -d --remove-orphans
+            sleep 15
             ./scripts/healthcheck.sh localhost
+            echo "Deployment complete"
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate release notes
+        run: |
+          echo "## StackDeploy ${{ github.ref_name }}" > /tmp/release-notes.md
+          echo "" >> /tmp/release-notes.md
+          echo "### Changes" >> /tmp/release-notes.md
+          git log --oneline $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo HEAD~10)..HEAD >> /tmp/release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/release-notes.md
+          generate_release_notes: true
