@@ -135,6 +135,31 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # --- NOC Dashboard (optional) ---
+  # Read-only monitor. Every service below still exposes its own port/API directly;
+  # this container only polls health endpoints and Portainer stats — it never proxies traffic.
+  noc-dashboard:
+    build:
+      context: ./noc-dashboard
+      dockerfile: Dockerfile
+    container_name: noc-dashboard
+    ports:
+      - "9500:9500"
+    environment:
+      POLL_INTERVAL_SECONDS: "${NOC_POLL_INTERVAL:-10}"
+      PORTAINER_URL: "${PORTAINER_URL:-}"
+      PORTAINER_API_KEY: "${PORTAINER_API_KEY:-}"
+      ENABLE_HEADROOM_MONITORING: "${ENABLE_HEADROOM_MONITORING:-false}"
+      OLLAMA_HOST: "${OLLAMA_HOST:-ollama}"
+      OLLAMA_PORT: "${OLLAMA_PORT:-11434}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9500/api/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   searxng-data:
   camofox-data:

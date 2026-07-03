@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J1-NOC :: StackDeploy</title>
+<style>
+  @import url('https://cdnjs.cloudflare.com/ajax/libs/jetbrains-mono/2.304/jetbrains-mono.css');
+
+  :root{
+    --bg: #0a0a09;
+    --panel: #121210;
+    --panel-border: #2b2417;
+    --amber: #ffb000;
+    --amber-dim: #7a5200;
+    --amber-dark: #4a3300;
+    --red: #ff3b3b;
+    --text: #e8e4d8;
+    --muted: #8a8375;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #14120c 0%, var(--bg) 60%);
+    color:var(--text);
+    font-family:'JetBrains Mono', ui-monospace, Menlo, monospace;
+    min-height:100vh;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background:repeating-linear-gradient(0deg, rgba(255,176,0,0.02) 0px, rgba(255,176,0,0.02) 1px, transparent 1px, transparent 3px);
+    pointer-events:none;
+    z-index:1;
+  }
+  header{
+    position:sticky; top:0; z-index:5;
+    background:rgba(10,10,9,0.92);
+    border-bottom:1px solid var(--panel-border);
+    backdrop-filter: blur(6px);
+    padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand .mark{color:var(--amber); font-weight:700; letter-spacing:2px; font-size:15px;}
+  .brand .sub{color:var(--muted); font-size:11px; letter-spacing:1px;}
+  .summary{display:flex; align-items:center; gap:16px; font-size:12px; letter-spacing:1px;}
+  .summary .count{color:var(--amber); font-size:18px; font-weight:700;}
+  .dot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;}
+  .dot.up{background:var(--amber); box-shadow:0 0 8px var(--amber);}
+  .dot.down{background:var(--red); box-shadow:0 0 8px var(--red);}
+  .dot.pending{background:var(--muted);}
+
+  main{padding:20px; max-width:1280px; margin:0 auto; position:relative; z-index:2;}
+  .group-label{
+    color:var(--amber-dim); font-size:11px; letter-spacing:3px; text-transform:uppercase;
+    margin:26px 0 10px 2px; border-left:2px solid var(--amber-dim); padding-left:8px;
+  }
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:12px;}
+  .card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    padding:14px 14px 10px;
+    position:relative;
+    transition:border-color .3s;
+  }
+  .card.up{border-color: var(--amber-dark);}
+  .card.down{border-color: var(--red); animation:flicker 1.4s infinite;}
+  @keyframes flicker{0%,100%{box-shadow:0 0 0 rgba(255,59,59,0);} 50%{box-shadow:0 0 12px rgba(255,59,59,0.35);}}
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start;}
+  .svc-name{font-size:13px; font-weight:700; letter-spacing:0.5px; color:var(--text);}
+  .svc-endpoint{font-size:10px; color:var(--muted); margin-top:3px;}
+  .svc-status{font-size:10px; letter-spacing:1px;}
+  .svc-status.up{color:var(--amber);}
+  .svc-status.down{color:var(--red);}
+  .metrics{display:flex; gap:14px; margin-top:10px; font-size:11px; color:var(--muted);}
+  .metrics b{color:var(--text); font-weight:600;}
+  canvas.scope{display:block; width:100%; height:36px; margin-top:10px;}
+  .err{font-size:10px; color:var(--red); margin-top:6px; word-break:break-word;}
+  a.open{
+    font-size:10px; color:var(--amber-dim); text-decoration:none; border-bottom:1px dotted var(--amber-dark);
+  }
+  a.open:hover{color:var(--amber);}
+
+  .portainer-box{
+    margin-top:26px; border:1px solid var(--panel-border); background:var(--panel); padding:14px;
+  }
+  .portainer-box.off{color:var(--muted); font-size:11px;}
+  footer{text-align:center; color:var(--muted); font-size:10px; padding:24px; letter-spacing:1px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="mark">J1-NOC</span>
+    <span class="sub">STACKDEPLOY MONITOR</span>
+  </div>
+  <div class="summary">
+    <span><span class="count" id="upCount">--</span> <span class="muted">/ <span id="totalCount">--</span> ONLINE</span></span>
+    <span id="lastPoll" style="color:var(--muted)">-- last poll</span>
+  </div>
+</header>
+
+<main>
+  <div id="groups"></div>
+  <div class="portainer-box" id="portainerBox">Portainer: not configured</div>
+</main>
+
+<footer>READ-ONLY MONITOR — EACH SERVICE STILL EXPOSES ITS OWN PORT / API DIRECTLY</footer>
+
+<script>
+const GROUP_ORDER = ["Search & Browser", "Memory & Knowledge", "Notes & Docs", "Inference", "Headroom"];
+let host = window.location.hostname;
+
+function fmtAgo(ts){
+  if(!ts) return '--';
+  const s = Math.floor(Date.now()/1000 - ts);
+  if(s < 2) return 'just now';
+  if(s < 60) return s + 's ago';
+  return Math.floor(s/60) + 'm ago';
+}
+
+function drawScope(canvas, history){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.clientWidth * devicePixelRatio;
+  const h = canvas.height = canvas.clientHeight * devicePixelRatio;
+  ctx.clearRect(0,0,w,h);
+  if(!history || history.length === 0) return;
+  const n = history.length;
+  const bw = w / Math.max(n, HISTORY_SLOTS());
+  const maxLatency = Math.max(50, ...history.map(p => p.latency_ms || 0));
+  history.forEach((p, i) => {
+    const x = i * bw;
+    let bh, color;
+    if(p.up){
+      bh = Math.max(2, (p.latency_ms || 1) / maxLatency * h);
+      color = '#ffb000';
+    } else {
+      bh = h * 0.85;
+      color = '#ff3b3b';
+    }
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.35 + 0.65 * (i / n);
+    ctx.fillRect(x, h - bh, Math.max(1, bw - 1), bh);
+  });
+  ctx.globalAlpha = 1;
+}
+function HISTORY_SLOTS(){ return 20; }
+
+function render(data){
+  const services = data.services;
+  const ids = Object.keys(services);
+  const upIds = ids.filter(id => services[id].up);
+  document.getElementById('upCount').textContent = upIds.length;
+  document.getElementById('totalCount').textContent = ids.length;
+  document.getElementById('lastPoll').textContent = fmtAgo(data.last_run) + ' · every ' + data.poll_interval + 's';
+
+  const groups = {};
+  ids.forEach(id => {
+    const s = services[id];
+    (groups[s.group] = groups[s.group] || []).push(s);
+  });
+
+  const container = document.getElementById('groups');
+  container.innerHTML = '';
+  GROUP_ORDER.filter(g => groups[g]).forEach(groupName => {
+    const label = document.createElement('div');
+    label.className = 'group-label';
+    label.textContent = groupName;
+    container.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    groups[groupName].forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'card ' + (s.up ? 'up' : 'down');
+      const openLink = s.public_port
+        ? `<a class="open" href="http://${host}:${s.public_port}" target="_blank" rel="noopener">open service :${s.public_port} →</a>`
+        : `<span class="svc-endpoint">internal only — not published to host</span>`;
+      card.innerHTML = `
+        <div class="card-top">
+          <div>
+            <div class="svc-name"><span class="dot ${s.up ? 'up' : 'down'}"></span>${s.name}</div>
+            <div class="svc-endpoint">${s.host}:${s.port}${s.path ? s.path : ''}</div>
+          </div>
+          <div class="svc-status ${s.up ? 'up' : 'down'}">${s.up ? 'ONLINE' : 'DOWN'}</div>
+        </div>
+        <div class="metrics">
+          <span>latency <b>${s.latency_ms != null ? s.latency_ms + 'ms' : '--'}</b></span>
+          <span>kind <b>${s.kind}</b></span>
+          ${s.code ? `<span>http <b>${s.code}</b></span>` : ''}
+        </div>
+        <canvas class="scope"></canvas>
+        ${s.error ? `<div class="err">${s.error}</div>` : ''}
+        ${openLink}
+      `;
+      grid.appendChild(card);
+      const canvas = card.querySelector('canvas.scope');
+      drawScope(canvas, data.history[s.id] || []);
+    });
+    container.appendChild(grid);
+  });
+
+  const pBox = document.getElementById('portainerBox');
+  if(!data.portainer.configured){
+    pBox.className = 'portainer-box off';
+    pBox.textContent = 'Portainer: not configured (set PORTAINER_URL + PORTAINER_API_KEY)';
+  } else {
+    const containers = data.portainer.containers || [];
+    pBox.className = 'portainer-box';
+    if(containers.length && containers[0].error){
+      pBox.innerHTML = `<div class="group-label" style="margin-top:0">Portainer</div><div class="err">${containers[0].error}</div>`;
+    } else {
+      pBox.innerHTML = `<div class="group-label" style="margin-top:0">Portainer — ${containers.length} containers</div>` +
+        containers.map(c => `<div class="svc-endpoint">${c.state === 'running' ? '●' : '○'} ${c.name} — ${c.status}</div>`).join('');
+    }
+  }
+}
+
+async function poll(){
+  try{
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    render(data);
+  }catch(e){
+    document.getElementById('lastPoll').textContent = 'connection error';
+  }
+}
+poll();
+setInterval(poll, 5000);
+</script>
+</body>
+</html>

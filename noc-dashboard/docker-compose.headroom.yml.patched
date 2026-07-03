@@ -32,9 +32,13 @@ services:
   headroom-qdrant:
     image: qdrant/qdrant:v1.17.1
     container_name: headroom-qdrant
+    # Host ports remapped to 6335/6336 — the main "qdrant" service already owns
+    # 6333/6334 on the host. Internal container ports are unchanged, so
+    # QDRANT__SERVICE__GRPC_PORT below and the healthcheck (which curls
+    # localhost:6333 *inside* this container) still work as-is.
     ports:
-      - "127.0.0.1:5333:6333"
-      - "127.0.0.1:5334:6334"
+      - "127.0.0.1:6335:6333"
+      - "127.0.0.1:6336:6334"
     volumes:
       - headroom-qdrant-data:/qdrant/storage
     environment:
