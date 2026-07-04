@@ -1,170 +1,298 @@
+# ─────────────────────────────────────────────────────────────
+# StackDeploy — Self-hosted AI Brain for Hermes Agent
+# One stack. One IP.  →  `docker compose up -d`
+# ─────────────────────────────────────────────────────────────
+# Requirements: git, docker, docker compose, tailscale (recommended)
+# See .env.example for all configurable variables.
+# ─────────────────────────────────────────────────────────────
+
+x-logging: &default-log
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+
+networks:
+  tailnet:
+    name: stackdeploy-tailnet
+    driver: bridge
+    attachable: true
+  backend:
+    name: stackdeploy-backend
+    internal: true
+    driver: bridge
+
+volumes:
+  qdrant-data:
+  honcho-pgdata:
+  honcho-redis-data:
+  couchdb-data:
+  ollama-data:
+
 services:
-  # --- Search ---
+
+  # ═══════════════════════════════════════════════════════
+  # SEARCH ENGINE
+  # ═══════════════════════════════════════════════════════
   searxng:
     image: searxng/searxng:latest
-    container_name: searxng
+    container_name: stackdeploy-searxng
+    restart: unless-stopped
+    networks: [tailnet]
     ports:
-      - "8080:8080"
+      - "${SVC_SEARXNG_PORT:-8080}:8080"
     volumes:
-      - searxng-data:/etc/searxng
-      - ./searxng/settings.yml:/etc/searxng/settings.yml
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf 'http://localhost:8080/search?q=healthcheck&format=json' || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
-  # --- Browser automation (browser-search: Camofox) ---
-  camofox:
-    image: ghcr.io/jo-inc/camofox-browser:latest
-    container_name: camofox-browser
-    shm_size: 2g
-    ports:
-      - "9377:9377"
+      - ./searxng:/etc/searxng:ro
     environment:
-      CAMOFOX_API_KEY: ${CAMOFOX_API_KEY:-}
-      CAMOFOX_ADMIN_KEY: ${CAMOFOX_ADMIN_KEY:-}
+      - SEARXNG_BASE_URL=http://${SERVER_IP:-localhost}:${SVC_SEARXNG_PORT:-8080}/
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+    logging: *default-log
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9377/health || exit 1"]
-      interval: 15s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
       timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      retries: 3
+      start_period: 10s
 
-  # --- Notes ---
-  obsidian:
-    image: sytone/obsidian-remote:latest
-    container_name: obsidian
-    ports:
-      - "8083:8080"
-    volumes:
-      - ${OBSIDIAN_VAULT_PATH:-./obsidian-vault}:/vaults
-    environment:
-      FM_HOME: /vaults
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
-  # --- Vector DB ---
+  # ═══════════════════════════════════════════════════════
+  # VECTOR DATABASE
+  # ═══════════════════════════════════════════════════════
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: qdrant
+    container_name: stackdeploy-qdrant
+    restart: unless-stopped
+    networks: [tailnet]
     ports:
-      - "6333:6333"
+      - "${SVC_QDRANT_PORT:-6333}:6333"
     volumes:
       - qdrant-data:/qdrant/storage
-    restart: unless-stopped
+    logging: *default-log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
-  # --- Memory: Honcho (self-hosted, from upstream) ---
+  # ═══════════════════════════════════════════════════════
+  # MEMORY LAYER  —  Honcho (LLM memory) + Postgres + Redis
+  # ═══════════════════════════════════════════════════════
+
   honcho-db:
     image: pgvector/pgvector:pg15
-    container_name: honcho-db
+    container_name: stackdeploy-honcho-db
+    restart: unless-stopped
+    networks: [backend]
+    ports:
+      - "127.0.0.1:5432:5432"    # host loopback only — admin tools
     environment:
-      POSTGRES_USER: honcho
-      POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}
-      POSTGRES_DB: honcho
-      PGDATA: /var/lib/postgresql/data/pgdata
+      - POSTGRES_DB=honcho
+      - POSTGRES_USER=honcho
+      - POSTGRES_PASSWORD=${HONCHO_DB_PASSWORD:-changeme}
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - honcho-postgres:/var/lib/postgresql/data/
+      - honcho-pgdata:/var/lib/postgresql/data
+    logging: *default-log
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
+      retries: 10
+      start_period: 15s
 
   honcho-redis:
     image: redis:8.2
-    container_name: honcho-redis
-    command: ["redis-server", "--bind", "0.0.0.0"]
+    container_name: stackdeploy-honcho-redis
+    restart: unless-stopped
+    networks: [backend]
+    ports:
+      - "127.0.0.1:6379:6379"    # host loopback only
     volumes:
-      - honcho-redis:/data
+      - honcho-redis-data:/data
+    logging: *default-log
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
+      retries: 10
+      start_period: 5s
 
-  honcho:
-    image: honcho-repo-api:latest
-    container_name: honcho
-    ports:
-      - "8081:8081"
-    env_file:
-      - .env
-    environment:
-      DB_CONNECTION_URI: postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-REPLACE_WITH_SECURE_PASSWORD}@honcho-db:5432/honcho
-      REDIS_URL: redis://honcho-redis:6379/0
-      AUTH_USE_AUTH: "false"
-      HONCHO_TOKEN: ${HONCHO_TOKEN:-}
-    volumes:
-      - honcho-data:/app/data
+  honcho-api:
+    image: ghcr.io/plastic-labs/honcho:latest
+    container_name: stackdeploy-honcho-api
+    restart: unless-stopped
     depends_on:
-      honcho-db:
-        condition: service_healthy
-      honcho-redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  # --- Optional: CloakBrowser for protected sites ---
-  cloakbrowser:
-    build:
-      context: ./browser-search
-      dockerfile: docker/Dockerfile.cloak
-    container_name: cloak-browser
-    shm_size: 2g
+      honcho-db:  { condition: service_healthy }
+      honcho-redis: { condition: service_healthy }
+    networks:
+      - backend
+      - tailnet
     ports:
-      - "9222:9222"
+      - "${SVC_HONCHO_PORT:-8000}:8000"
     environment:
-      CLOAK_HEADLESS: "true"
+      - DB_CONNECTION_URI=postgresql+psycopg://honcho:${HONCHO_DB_PASSWORD:-changeme}@honcho-db:5432/honcho
+      - CACHE_ENABLED=true
+      - CACHE_URL=redis://honcho-redis:6379/0
+      - METRICS_ENABLED=false
+    volumes:
+      - ./honcho/config.toml:/app/config.toml:ro
+    logging: *default-log
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9222/json/version || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ═══════════════════════════════════════════════════════
+  # OBSIDIAN LIVESYNC  —  CouchDB (Real-time sync backend)
+  # ═══════════════════════════════════════════════════════
+
+  livesync:
+    image: couchdb:3.4
+    container_name: stackdeploy-livesync
+    restart: unless-stopped
+    networks: [tailnet]
+    ports:
+      - "${SVC_COUCHDB_PORT:-5984}:5984"
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+    # Admin user created by CouchDB on first boot via env vars
+    environment:
+      - COUCHDB_USER=${COUCHDB_ADMIN_USER:-admin}
+      - COUCHDB_PASSWORD=${COUCHDB_ADMIN_PASSWORD:-changeme}
+    logging: *default-log
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:5984/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  livesync-init:
+    image: curlimages/curl:latest
+    container_name: stackdeploy-livesync-init
+    restart: "no"
+    init: true
+    networks: [tailnet]
+    depends_on:
+      livesync: { condition: service_healthy }
+    environment:
+      - COUCHDB_ADMIN_USER=${COUCHDB_ADMIN_USER:-admin}
+      - COUCHDB_ADMIN_PASSWORD=${COUCHDB_ADMIN_PASSWORD:-changeme}
+      - COUCHDB_SYNC_USER=${COUCHDB_SYNC_USER:-obsync}
+      - COUCHDB_SYNC_PASSWORD=${COUCHDB_SYNC_PASSWORD:-changeme}
+    volumes:
+      - ./obsidian/couchdb-init.sh:/init.sh:ro
+    entrypoint: ["/bin/sh", "/init.sh"]
+
+  # ═══════════════════════════════════════════════════════
+  # OBSIDIAN VAULT WEB VIEWER  —  Caddy
+  # ═══════════════════════════════════════════════════════
+  obsidian:
+    image: caddy:2-alpine
+    container_name: stackdeploy-obsidian
+    restart: unless-stopped
+    networks: [tailnet]
+    ports:
+      - "${SVC_OBSIDIAN_PORT:-8083}:80"
+    volumes:
+      - ./obsidian/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./obsidian/vault:/var/lib/caddy/vault:ro
+      - ./obsidian/index.html:/var/lib/caddy/index.html:ro
+    logging: *default-log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ═══════════════════════════════════════════════════════
+  # P2P FILE SYNC  —  Syncthing (laptop ↔ server)
+  # ═══════════════════════════════════════════════════════
+  syncthing:
+    image: syncthing/syncthing:latest
+    container_name: stackdeploy-syncthing
+    restart: unless-stopped
+    networks: [tailnet]
+    ports:
+      - "${SVC_SYNCTHING_UI_PORT:-8384}:8384"    # web UI
+      - "22000:22000/tcp"                         # sync transport
+      - "22000:22000/udp"
+      - "21027:21027/udp"                         # LAN discovery
+    volumes:
+      - ./syncthing/config:/var/syncthing/config
+      - ./obsidian/vault:/var/syncthing/vault:ro
+    environment:
+      - STGUIADDRESS=0.0.0.0:${SVC_SYNCTHING_UI_PORT:-8384}
+      - STNODEFAULTUSER=true
+    logging: *default-log
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${SVC_SYNCTHING_UI_PORT:-8384}/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ═══════════════════════════════════════════════════════
+  # WEB AUTOMATION  —  Selenium standalone Chrome
+  # ═══════════════════════════════════════════════════════
+  webautomation:
+    image: selenium/standalone-chrome:latest
+    container_name: stackdeploy-webautomation
+    restart: unless-stopped
+    networks: [tailnet]
+    ports:
+      - "${SVC_SELENIUM_PORT:-4444}:4444"
+    shm_size: "${SELENIUM_SHM_SIZE:-2g}"
+    environment:
+      - SE_NO_SANDBOX=${SELENIUM_NO_SANDBOX:-1}
+      - SE_VNC_PASSWORD=${SELENIUM_VNC_PASSWORD:-}
+      - SE_OPTS=${SELENIUM_OPTS:-}
+    logging: *default-log
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ═══════════════════════════════════════════════════════
+  # LOCAL LLM  —  Ollama (optional, comment out to skip)
+  # ═══════════════════════════════════════════════════════
+  ollama:
+    image: ollama/ollama:latest
+    container_name: stackdeploy-ollama
+    restart: unless-stopped
+    networks: [tailnet]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}
+    # GPU acceleration — uncomment if NVIDIA GPU + nvidia-container-toolkit installed:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    logging: *default-log
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-    restart: unless-stopped
-
-  # --- NOC Dashboard (optional) ---
-  # Read-only monitor. Every service below still exposes its own port/API directly;
-  # this container only polls health endpoints and Portainer stats — it never proxies traffic.
-  noc-dashboard:
-    build:
-      context: ./noc-dashboard
-      dockerfile: Dockerfile
-    container_name: noc-dashboard
-    ports:
-      - "9500:9500"
-    environment:
-      POLL_INTERVAL_SECONDS: "${NOC_POLL_INTERVAL:-10}"
-      PORTAINER_URL: "${PORTAINER_URL:-}"
-      PORTAINER_API_KEY: "${PORTAINER_API_KEY:-}"
-      ENABLE_HEADROOM_MONITORING: "${ENABLE_HEADROOM_MONITORING:-false}"
-      OLLAMA_HOST: "${OLLAMA_HOST:-ollama}"
-      OLLAMA_PORT: "${OLLAMA_PORT:-11434}"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9500/api/healthz || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    restart: unless-stopped
-
 volumes:
-  searxng-data:
-  camofox-data:
-  obsidian-vault:
   qdrant-data:
-  honcho-postgres:
-  honcho-redis:
-  honcho-data:
+  honcho-pgdata:
+  honcho-redis-data:
+  couchdb-data:
+  ollama-data:

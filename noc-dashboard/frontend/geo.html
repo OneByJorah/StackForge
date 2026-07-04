@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J1-NOC // Tailscale Node Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+  @import url('https://cdnjs.cloudflare.com/ajax/libs/jetbrains-mono/2.304/jetbrains-mono.css');
+
+  :root{
+    --bg:#05080f;
+    --panel:rgba(5,8,15,0.75);
+    --panel-border:rgba(0,229,255,0.1);
+    --amber:#00e5ff;
+    --amber-dim:#006080;
+    --amber-dark:#003052;
+    --red:#ff0080;
+    --text:#e8f4ff;
+    --muted:#6b8fa3;
+    --glass-bg:rgba(5,8,15,0.75);
+    --glass-border:rgba(0,229,255,0.1);
+    --gradient-brand:linear-gradient(135deg,#00e5ff,#ff0080);
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #0c131a 0%, var(--bg) 60%),
+      repeating-linear-gradient(0deg, rgba(0,255,213,0.03) 0px, rgba(0,255,213,0.03) 1px, transparent 1px, transparent 3px);
+    color:var(--text);
+    font-family:'JetBrains Mono', ui-monospace, Menlo, monospace;
+    height:100%;
+    overflow:hidden;
+  }
+
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background:
+      linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
+      linear-gradient(90deg, rgba(255,0,128,0.04), rgba(0,229,255,0.02), rgba(255,0,128,0.04));
+    background-size:100% 2px, 3px 100%;
+    pointer-events:none;
+    z-index:100;
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    background:radial-gradient(circle at 30% 40%,rgba(0,229,255,0.03),transparent 60%),radial-gradient(circle at 70% 60%,rgba(255,0,128,0.03),transparent 60%);
+    pointer-events:none; z-index:0;
+    animation:bgDrift 12s ease-in-out infinite alternate;
+  }
+  @keyframes bgDrift{
+    0%{opacity:0.5;transform:translate(0,0);}
+    100%{opacity:1;transform:translate(2%,1%);}
+  }
+
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:90;
+    background:var(--glass-bg);
+    border-bottom:1px solid var(--glass-border);
+    backdrop-filter:blur(12px);
+    padding:12px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .brand{display:flex;align-items:baseline;gap:12px;}
+  .brand .mark{
+    font-weight:700; letter-spacing:3px; font-size:14px;
+    background:var(--gradient-brand); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .brand .sub{color:var(--muted); font-size:10px; letter-spacing:1.5px; text-transform:uppercase;}
+  .nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .nav a{color:var(--amber); text-decoration:none; font-size:10px; letter-spacing:1.5px; border:1px solid var(--amber-dark); padding:4px 8px; transition:all .2s;}
+  .nav a:hover{background:rgba(0,229,255,0.08); border-color:var(--amber-dim); box-shadow:0 0 12px rgba(0,229,255,0.15);}
+  .summary{
+    display:flex; align-items:center; gap:16px;
+    font-size:11px; letter-spacing:1.5px;
+  }
+  .count{color:var(--amber); font-size:18px; font-weight:700; text-shadow:0 0 18px rgba(0,229,255,0.7);}
+  .muted{color:var(--muted);}
+  .timestamp{color:var(--amber-dim); font-size:10px; letter-spacing:1px;}
+
+  #map{
+    position:fixed;
+    top:52px; left:0; right:0; bottom:32px;
+    z-index:1;
+  }
+
+  .leaflet-popup-content-wrapper{
+    background:var(--glass-bg) !important;
+    border:1px solid var(--glass-border) !important;
+    color:var(--text) !important;
+    font-family:'JetBrains Mono', monospace !important;
+    font-size:11px !important;
+    box-shadow:0 0 30px rgba(0,229,255,0.12) !important;
+    backdrop-filter:blur(12px);
+    border-radius:0 !important;
+  }
+  .leaflet-popup-tip{
+    background:var(--glass-bg) !important;
+  }
+  .leaflet-container a{
+    color:var(--amber) !important;
+  }
+
+  .node-status{
+    display:inline-block;
+    width:8px; height:8px;
+    border-radius:50%;
+    margin-right:4px;
+    box-shadow:0 0 8px currentColor;
+    vertical-align:middle;
+  }
+  .node-status.online{background:var(--amber); color:var(--amber); animation:pulse 2s infinite;}
+  .node-status.offline{background:var(--muted); color:var(--muted);}
+  @keyframes pulse{
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:.55;transform:scale(1.4);}
+  }
+
+  .leaflet-popup-content{
+    margin:10px 12px !important;
+  }
+  .popup-title{
+    color:var(--amber); font-size:12px; font-weight:700;
+    letter-spacing:1px; margin-bottom:6px;
+    text-shadow:0 0 8px rgba(0,229,255,0.4);
+  }
+  .popup-row{
+    color:var(--muted); font-size:10px; letter-spacing:.5px;
+    margin-top:3px;
+  }
+  .popup-row b{color:var(--text); font-weight:600;}
+  .popup-row .online{color:var(--amber);}
+  .popup-row .offline{color:var(--muted);}
+
+  .filter-bar{
+    position:fixed; top:52px; left:10px; z-index:80;
+    display:flex; gap:8px; flex-wrap:wrap;
+    max-width:420px;
+  }
+  .filter-chip{
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    color:var(--muted);
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px;
+    letter-spacing:1px;
+    padding:5px 10px;
+    cursor:pointer;
+    transition:all .2s;
+    text-transform:uppercase;
+  }
+  .filter-chip:hover{border-color:var(--amber-dim); color:var(--text);}
+  .filter-chip.active{
+    border-color:var(--amber);
+    color:var(--amber);
+    box-shadow:0 0 10px rgba(0,229,255,0.15);
+  }
+
+  .legend{
+    position:fixed; bottom:36px; left:10px; z-index:80;
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    padding:10px 14px;
+    font-size:10px;
+    letter-spacing:.5px;
+    backdrop-filter:blur(12px);
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .legend-item{display:flex;align-items:center;gap:6px;color:var(--muted);}
+  .legend-dot{
+    width:8px; height:8px; border-radius:50%;
+    box-shadow:0 0 6px currentColor;
+  }
+
+  footer{
+    position:fixed; bottom:0; left:0; right:0; z-index:90;
+    background:var(--glass-bg);
+    border-top:1px solid var(--glass-border);
+    padding:6px 20px;
+    display:flex; justify-content:space-between;
+    font-size:10px; color:var(--muted); letter-spacing:1px;
+  }
+  footer .right{text-transform:uppercase;}
+  footer .blink{color:var(--amber); animation:blink 1s infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+
+  /* Leaflet overrides for dark theme */
+  .leaflet-container{
+    background:#06080b !important;
+  }
+  .leaflet-control-zoom a{
+    background:var(--glass-bg) !important;
+    color:var(--text) !important;
+    border:1px solid var(--glass-border) !important;
+    border-radius:0 !important;
+    font-family:'JetBrains Mono', monospace !important;
+  }
+  .leaflet-control-zoom a:hover{
+    background:rgba(0,229,255,0.1) !important;
+    color:var(--amber) !important;
+  }
+  .leaflet-control-attribution{
+    background:rgba(5,8,15,0.85) !important;
+    color:var(--muted) !important;
+    font-family:'JetBrains Mono', monospace !important;
+    font-size:8px !important;
+  }
+  .leaflet-control-attribution a{color:var(--amber-dim) !important;}
+
+  /* HUB marker pulse ring */
+  .hub-pulse{
+    width:30px; height:30px;
+    border-radius:50%;
+    background:rgba(0,229,255,0.15);
+    border:2px solid var(--amber);
+    box-shadow:0 0 20px rgba(0,229,255,0.4);
+    animation:hub-pulse 2.5s ease-out infinite;
+  }
+  @keyframes hub-pulse{
+    0%{transform:scale(1);opacity:.9;}
+    100%{transform:scale(3.5);opacity:0;}
+  }
+
+  /* Flying arc animation */
+  @keyframes fly{
+    0%{stroke-dashoffset:1000;opacity:0;}
+    10%{opacity:1;}
+    90%{opacity:1;}
+    100%{stroke-dashoffset:0;opacity:0;}
+  }
+  .fly-arc{
+    stroke-dasharray:1000;
+    animation:fly 3s linear infinite;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="mark">J1-NOC</span>
+    <span class="sub">Tailscale Node Map // TAILNET TELEMETRY</span>
+    <div class="nav">
+      <a href="/">NOC</a>
+      <a href="/geo">GEO MAP</a>
+      <a href="/mesh">MESH</a>
+      <a href="/agents">AGENTS</a>
+    </div>
+  </div>
+  <div class="summary">
+    <span><span class="node-status online"></span><span class="count" id="upCount">--</span><span class="muted"> / <span id="totalCount">--</span> ONLINE</span></span>
+    <span class="timestamp" id="lastPoll">-- last update</span>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <button class="filter-chip active" data-filter="all" onclick="setFilter('all')">ALL</button>
+  <button class="filter-chip" data-filter="online" onclick="setFilter('online')">ONLINE</button>
+  <button class="filter-chip" data-filter="offline" onclick="setFilter('offline')">OFFLINE</button>
+  <button class="filter-chip" data-filter="linux" onclick="setFilter('linux')">LINUX</button>
+  <button class="filter-chip" data-filter="windows" onclick="setFilter('windows')">WINDOWS</button>
+  <button class="filter-chip" data-filter="ios" onclick="setFilter('ios')">iOS</button>
+  <button class="filter-chip" data-filter="android" onclick="setFilter('android')">ANDROID</button>
+</div>
+
+<div id="map"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;color:#00e5ff;box-shadow:0 0 6px #00e5ff;"></div>ONLINE</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffffff33;color:#6b8fa3;"></div>OFFLINE</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6b8fa3;color:#6b8fa3;"></div>RELAY HUB</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;color:#f59e0b;"></div>SELF</div>
+  <div class="legend-item" style="color:var(--muted);">ARCS = RELAY PATH THROUGH MIA</div>
+</div>
+
+<footer>
+  <div class="right">INTERVAL:10s /// AUTO-POLL</div>
+  <div class="right">RELAY: <span id="relayName">--</span></div>
+  <div class="right"><span class="blink">●</span> LIVE</div>
+  <div class="right" id="sysTime">--</div>
+</footer>
+
+<script>
+const OS_COLORS = {
+  linux: '#10b981',
+  windows: '#3b82f6',
+  ios: '#a78bfa',
+  android: '#f59e0b',
+  darwin: '#ec4899',
+  unknown: '#7aaab8',
+};
+
+let map;
+let markers = {};
+let arcs = [];
+let currentFilter = 'all';
+
+function initMap(){
+  map = L.map('map', {
+    center: [20, -60],
+    zoom: 2,
+    zoomControl: true,
+    attributionControl: true,
+    fadeAnimation: true,
+    markerZoomAnimation: true,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(map);
+}
+
+function makeNodeIcon(node){
+  const color = node.self ? '#f59e0b' : (OS_COLORS[node.os] || OS_COLORS.unknown);
+  const size = node.self ? 14 : 10;
+  const online = node.online;
+  const pulse = online ? `<circle cx="10" cy="10" r="${size+6}" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.6"><animate attributeName="r" from="${size}" to="${size+12}" dur="${1.5 + Math.random()}s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.7" to="0" dur="${1.5 + Math.random()}s" repeatCount="indefinite"/></circle>` : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+    ${pulse}
+    <circle cx="10" cy="10" r="${size}" fill="${color}" opacity="${online ? 1 : 0.4}" stroke="${color}" stroke-width="${node.self ? 2.5 : 1}"/>
+    ${node.self ? '<circle cx="10" cy="10" r="3" fill="#06080b"/>' : ''}
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -14],
+  });
+}
+
+function makeHubIcon(relayName){
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="18" fill="rgba(0,229,255,0.08)" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="4 2">
+      <animateTransform attributeName="transform" type="rotate" from="0 24 24" to="360 24 24" dur="20s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="24" cy="24" r="10" fill="#00e5ff" opacity="0.9" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="24" cy="24" r="4" fill="#05080f"/>
+    <circle cx="24" cy="24" r="22" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5">
+      <animate attributeName="r" from="14" to="26" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" from="0.8" to="0" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+    popupAnchor: [0, -26],
+  });
+}
+
+function fmtBytes(gb){
+  if(gb >= 1000) return (gb/1000).toFixed(2) + ' TB';
+  return gb.toFixed(2) + ' GB';
+}
+
+function renderPopup(node){
+  const statusClass = node.online ? 'online' : 'offline';
+  const statusText = node.online ? 'ONLINE' : 'OFFLINE';
+  return `
+    <div class="popup-title">${node.hostname.toUpperCase()} // ${node.ip}</div>
+    <div class="popup-row"><span class="node-status ${statusClass}"></span> <span class="${statusClass}">${statusText}</span></div>
+    <div class="popup-row"><b>OS:</b> ${node.os}</div>
+    <div class="popup-row"><b>RELAY:</b> ${node.relay_name}</div>
+    <div class="popup-row"><b>LAST SEEN:</b> ${node.lastseen}</div>
+    <div class="popup-row"><b>TX:</b> ${fmtBytes(node.tx_gb)}</div>
+    <div class="popup-row"><b>RX:</b> ${fmtBytes(node.rx_gb)}</div>
+  `;
+}
+
+function drawArcs(nodes, hubLat, hubLon){
+  // Remove old arcs
+  arcs.forEach(a => map.removeLayer(a));
+  arcs = [];
+  nodes.forEach(node => {
+    if(node.self) return;
+    const color = OS_COLORS[node.os] || OS_COLORS.unknown;
+    const opacity = node.online ? 0.35 : 0.08;
+    const arc = L.polyline([[node.lat, node.lon],[hubLat,hubLon]], {
+      color: color,
+      weight: 1.2,
+      opacity: opacity,
+      dashArray: '6 8',
+      className: 'fly-arc',
+      lineCap: 'round',
+    }).addTo(map);
+    arcs.push(arc);
+  });
+}
+
+function renderNodes(nodes){
+  // Remove old markers
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+
+  // compute hub from most common non-self relay location
+  const peerNodes = nodes.filter(n => !n.self);
+  const relayCounts = {};
+  peerNodes.forEach(n => {
+    const key = `${n.relay_name || n.relay}`;
+    relayCounts[key] = (relayCounts[key] || 0) + 1;
+  });
+  const hubKey = Object.keys(relayCounts).sort((a,b) => relayCounts[b] - relayCounts[a])[0] || 'mia';
+  const hubNode = peerNodes.find(n => (n.relay_name || n.relay) === hubKey) || peerNodes[0];
+  const hubLat = hubNode ? hubNode.lat : 25.0;
+  const hubLon = hubNode ? hubNode.lon : -80.0;
+  const relayName = hubNode ? (hubNode.relay_name || hubNode.relay) : '--';
+
+  document.getElementById('relayName').textContent = relayName.toUpperCase();
+
+  // Hub marker
+  const hubIcon = makeHubIcon(relayName);
+  const hubMarker = L.marker([hubLat, hubLon], {icon: hubIcon, zIndexOffset: 1000})
+    .addTo(map)
+    .bindPopup(`<div class="popup-title">◆ DERP HUB // ${relayName.toUpperCase()}</div><div class="popup-row">All 37 tailnet peers route through this relay.<br>Traffic is encrypted end-to-end.</div>`);
+  markers['__hub__'] = hubMarker;
+
+  // Node markers
+  const filtered = nodes.filter(n => {
+    if(currentFilter === 'all') return true;
+    if(currentFilter === 'online') return n.online;
+    if(currentFilter === 'offline') return !n.online;
+    return n.os.toLowerCase() === currentFilter;
+  });
+
+  filtered.forEach(node => {
+    if(node.self && currentFilter !== 'all') return;
+    const icon = makeNodeIcon(node);
+    const m = L.marker([node.lat, node.lon], {icon, zIndexOffset: node.online ? 500 : 100})
+      .addTo(map)
+      .bindPopup(renderPopup(node), {maxWidth: 220});
+    markers[node.ip] = m;
+  });
+
+  drawArcs(filtered.filter(n => !n.self), hubLat, hubLon);
+}
+
+function setFilter(f){
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === f);
+  });
+  poll();
+}
+
+async function poll(){
+  try{
+    const r = await fetch('/api/tailscale');
+    if(!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const nodes = data.nodes || [];
+    const up = nodes.filter(n => n.online).length;
+    const upEl = document.getElementById('upCount');
+    const totalEl = document.getElementById('totalCount');
+    const lp = document.getElementById('lastPoll');
+    if(totalEl) totalEl.textContent = nodes.length;
+    if(upEl) upEl.textContent = up;
+    if(lp) lp.textContent = new Date().toISOString().slice(0,19).replace('T',' ') + ' UTC';
+    renderNodes(nodes);
+  }catch(e){
+    console.error('tailscale poll failed', e);
+  }
+}
+
+function tick(){
+  const el = document.getElementById('sysTime');
+  if(el) el.textContent = new Date().toISOString().replace('T',' ').slice(0,19);
+}
+setInterval(tick, 1000);
+tick();
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  initMap();
+  poll();
+  setInterval(poll, 10000);
+});
+</script>
+</body>
+</html>

@@ -1,10 +1,24 @@
 .env
 .env.local
+.env.honcho
 *.log
 __pycache__/
 *.pyc
 .DS_Store
 browser-search/node_modules/
 
-# Honcho env
-.env.honcho
+# Syncthing — certs, keys, device IDs
+syncthing/config/
+
+# Auto-generated vault index
+obsidian/vault/index.json
+
+# Virtual environments
+.venv/
+**/.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

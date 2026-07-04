@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault</title>
+<style>
+  :root { --amber: #FFB300; --bg: #1a1a2e; --surface: #16213e; --text: #e0e0e0; --muted: #8892b0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font: 15px/1.6 system-ui, sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  .sidebar { position:fixed; left:0; top:0; width:260px; height:100vh; background:var(--surface); overflow-y:auto; padding:20px; border-right:1px solid rgba(255,179,0,.15); }
+  .sidebar h1 { color:var(--amber); font-size:1.1rem; margin-bottom:16px; letter-spacing:.03em; }
+  .sidebar a { display:block; padding:6px 10px; color:var(--muted); text-decoration:none; border-radius:4px; font-size:.88rem; transition:.15s; }
+  .sidebar a:hover, .sidebar a.active { color:var(--text); background:rgba(255,179,0,.08); }
+  .main { margin-left:260px; padding:40px 48px; max-width:900px; }
+  .main h1 { color:var(--amber); margin-bottom:20px; }
+  .main h2 { color:var(--amber); margin:28px 0 12px; }
+  .main p { margin-bottom:14px; }
+  .main code { background:rgba(255,255,255,.06); padding:2px 6px; border-radius:3px; font-size:.9em; }
+  .main pre { background:rgba(255,255,255,.05); padding:16px; border-radius:6px; overflow-x:auto; margin:14px 0; }
+  .main ul { margin:10px 0 10px 20px; }
+  .main blockquote { border-left:3px solid var(--amber); padding-left:14px; color:var(--muted); margin:14px 0; }
+  .empty { color:var(--muted); text-align:center; padding:60px; }
+  .empty h2 { font-size:1.4rem; margin-bottom:10px; color:var(--amber); }
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h1>📓 Vault</h1>
+<div id="file-list"></div>
+</div>
+<div class="main" id="content"></div>
+<script>
+const INDEX = [];
+
+async function loadFile(path) {
+  document.querySelectorAll(".sidebar a").forEach(a => a.classList.remove("active"));
+  document.querySelector(`[data-path="${path}"]`)?.classList.add("active");
+  const res = await fetch(`/vault/${path}`);
+  const md = await res.text();
+  document.getElementById("content").innerHTML = renderMarkdown(md);
+}
+
+function renderMarkdown(text) {
+  let h = "", inCode = false, codeLines = [];
+  text.split("\n").forEach(line => {
+    if (line.startsWith("```")) {
+      if (inCode) { h += `<pre>${codeLines.join("\n")}</pre>\n`; codeLines = []; inCode = false; }
+      else { inCode = true; }
+      return;
+    }
+    if (inCode) { codeLines.push(line.replace(/</g,"&lt;").replace(/>/g,"&gt;")); return; }
+    if (line.startsWith("# ")) h += `<h1>${line.slice(2)}</h1>\n`;
+    else if (line.startsWith("## ")) h += `<h2>${line.slice(3)}</h2>\n`;
+    else if (line.startsWith("### ")) h += `<h3>${line.slice(4)}</h3>\n`;
+    else if (line.startsWith("- ")) h += `<li>${line.slice(2)}</li>\n`;
+    else if (line.trim() === "") h += "<br>\n";
+    else h += `<p>${line}</p>\n`;
+  });
+  return h;
+}
+
+fetch("/vault/index.json").then(r => r.json()).then(data => {
+  data.notes.sort((a,b) => a.title.localeCompare(b.title));
+  data.notes.forEach(e => {
+    INDEX.push(e);
+    const a = document.createElement("a");
+    a.href = "#"; a.textContent = e.title;
+    a.dataset.path = e.path;
+    a.onclick = (ev) => { ev.preventDefault(); loadFile(e.path); };
+    document.getElementById("file-list").appendChild(a);
+  });
+  if (INDEX.length) loadFile(INDEX[0].path);
+});
+</script>
+</body>
+</html>

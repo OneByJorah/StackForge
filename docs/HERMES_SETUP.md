@@ -43,7 +43,7 @@ honcho:
 
 obsidian:
   enabled: true
-  vault_path: /home/j1admin/ObsidianVault
+  vault_path: /path/to/your/vault
 ```
 
 For local Obsidian, open the vault folder in the desktop app. Hermes reads and writes notes directly through the Obsidian skill.

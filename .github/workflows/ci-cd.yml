@@ -90,7 +90,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
           script: |
-            cd /home/j1admin/StackDeploy
+            cd /path/to/StackDeploy
             git pull origin main
             cp .env.example .env 2>/dev/null || true
             docker compose pull

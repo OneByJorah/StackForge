@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J1-NOC // Tailscale Mesh</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+  @import url('https://cdnjs.cloudflare.com/ajax/libs/jetbrains-mono/2.304/jetbrains-mono.css');
+  :root{
+    --bg:#05080f;
+    --panel:rgba(5,8,15,0.75);
+    --panel-border:rgba(0,229,255,0.1);
+    --amber:#00e5ff;
+    --amber-dim:#006080;
+    --amber-dark:#003052;
+    --red:#ff0080;
+    --text:#e8f4ff;
+    --muted:#6b8fa3;
+    --glass-bg:rgba(5,8,15,0.75);
+    --glass-border:rgba(0,229,255,0.1);
+    --gradient-brand:linear-gradient(135deg,#00e5ff,#ff0080);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'JetBrains Mono', ui-monospace, Menlo, monospace;
+    height:100%; overflow:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background:
+      linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
+      linear-gradient(90deg, rgba(255,0,128,0.04), rgba(0,229,255,0.02), rgba(255,0,128,0.04));
+    background-size:100% 2px, 3px 100%;
+    pointer-events:none; z-index:100;
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    background:radial-gradient(circle at 30% 40%,rgba(0,229,255,0.03),transparent 60%),radial-gradient(circle at 70% 60%,rgba(255,0,128,0.03),transparent 60%);
+    pointer-events:none; z-index:0;
+    animation:bgDrift 12s ease-in-out infinite alternate;
+  }
+  @keyframes bgDrift{
+    0%{opacity:0.5;transform:translate(0,0);}
+    100%{opacity:1;transform:translate(2%,1%);}
+  }
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:90;
+    background:var(--glass-bg);
+    border-bottom:1px solid var(--glass-border);
+    backdrop-filter:blur(12px);
+    padding:10px 18px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  .brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+  .brand .mark{font-weight:700; letter-spacing:3px; font-size:14px; background:var(--gradient-brand); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;}
+  .brand .sub{color:var(--muted); font-size:10px; letter-spacing:1.5px; text-transform:uppercase;}
+  .nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .nav a{color:var(--amber); text-decoration:none; font-size:10px; letter-spacing:1.5px; border:1px solid var(--amber-dark); padding:4px 8px; transition:all .2s;}
+  .nav a:hover{background:rgba(0,229,255,0.08); border-color:var(--amber-dim); box-shadow:0 0 12px rgba(0,229,255,0.15);}
+  .summary{display:flex;gap:14px;align-items:center;font-size:10px;letter-spacing:1.5px;flex-wrap:wrap;}
+  .count{color:var(--amber); font-size:18px; font-weight:700; text-shadow:0 0 18px rgba(0,229,255,0.7);}
+  .muted{color:var(--muted);}
+  .timestamp{color:var(--amber-dim); font-size:10px; letter-spacing:1px;}
+
+  /* View toggle */
+  .view-toggle{display:flex;gap:6px;}
+  .view-btn{
+    background:transparent; border:1px solid var(--amber-dark);
+    color:var(--muted); font-family:'JetBrains Mono',monospace;
+    font-size:9px; letter-spacing:1.5px; padding:4px 10px;
+    cursor:pointer; transition:all .2s; text-transform:uppercase;
+  }
+  .view-btn:hover{border-color:var(--amber-dim);color:var(--text);}
+  .view-btn.active{border-color:var(--amber);color:var(--amber);box-shadow:0 0 8px rgba(0,229,255,0.15);}
+
+  /* Main view areas */
+  #geoView{position:fixed;top:44px;left:0;right:0;bottom:28px;z-index:1;display:none;}
+  #geoView.active{display:block;}
+  #topoView{position:fixed;top:44px;left:0;right:0;bottom:28px;z-index:1;display:none;}
+  #topoView.active{display:block;}
+
+  canvas#net{display:block;width:100%;height:100%;background:
+    radial-gradient(ellipse at top, #0a1218 0%, var(--bg) 60%),
+    linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+    background-size:100% 100%, 28px 28px, 28px 28px;
+  }
+
+  /* Filter/search bar */
+  .action-bar{
+    position:fixed; top:48px; left:10px; z-index:80;
+    display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+    max-width:calc(100vw - 20px);
+  }
+  .filter-chip{
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    color:var(--muted);
+    font-family:'JetBrains Mono', monospace;
+    font-size:9px;
+    letter-spacing:1px;
+    padding:4px 8px;
+    cursor:pointer;
+    transition:all .2s;
+    text-transform:uppercase;
+  }
+  .filter-chip:hover{border-color:var(--amber-dim);color:var(--text);}
+  .filter-chip.active{border-color:var(--amber);color:var(--amber);box-shadow:0 0 8px rgba(0,229,255,0.15);}
+  .filter-chip.count-badge{position:relative;}
+  .filter-chip .badge{
+    position:absolute;top:-6px;right:-6px;
+    background:var(--amber);color:var(--bg);
+    font-size:7px;font-weight:700;padding:1px 4px;
+    line-height:1;border-radius:2px;
+  }
+
+  #searchInput{
+    background:var(--glass-bg);border:1px solid var(--glass-border);
+    color:var(--text);font-family:'JetBrains Mono',monospace;
+    font-size:10px;padding:4px 8px;width:130px;
+    outline:none;transition:border-color .2s;
+    letter-spacing:0.5px;
+  }
+  #searchInput::placeholder{color:var(--muted);opacity:0.6;}
+  #searchInput:focus{border-color:var(--amber-dim);}
+
+  /* Legend */
+  .legend{
+    position:fixed; bottom:32px; left:10px; z-index:80;
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    padding:8px 12px; font-size:9px; letter-spacing:.5px;
+    backdrop-filter:blur(12px);
+    display:flex; flex-wrap:wrap; gap:6px 12px;
+    pointer-events:none;
+  }
+  .legend-item{display:flex;align-items:center;gap:5px;color:var(--muted);}
+  .legend-dot{width:7px;height:7px;border-radius:50%;box-shadow:0 0 5px currentColor;}
+
+  /* Popup */
+  .popup{
+    position:fixed; z-index:100;
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    padding:12px 14px; font-size:10px; min-width:220px;
+    box-shadow:0 0 30px rgba(0,229,255,0.12); backdrop-filter:blur(12px);
+    pointer-events:none; display:none;
+  }
+  .popup.show{display:block;}
+  .popup-title{color:var(--amber); font-size:12px; font-weight:700; letter-spacing:1px; margin-bottom:6px; text-shadow:0 0 8px rgba(0,229,255,0.4);}
+  .popup-row{color:var(--muted); letter-spacing:.5px; margin-top:3px;}
+  .popup-row b{color:var(--text); font-weight:600;}
+  .popup-row .online{color:var(--amber);}
+  .popup-row .offline{color:var(--muted);}
+
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;box-shadow:0 0 8px currentColor;vertical-align:middle;}
+  .dot.online{background:var(--amber); color:var(--amber); animation:pulse 2s infinite;}
+  .dot.offline{background:#7aaab8; color:#7aaab8;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.6;transform:scale(1.3);}}
+
+  /* Stats panel */
+  .stats-panel{
+    position:fixed; bottom:32px; right:10px; z-index:80;
+    background:var(--glass-bg); border:1px solid var(--glass-border);
+    padding:8px 12px; font-size:9px; letter-spacing:.5px;
+    backdrop-filter:blur(12px);
+    pointer-events:none;
+  }
+  .stats-panel .stat-row{color:var(--muted);margin:2px 0;}
+  .stats-panel .stat-row span{color:var(--amber);}
+
+  footer{
+    position:fixed; bottom:0; left:0; right:0; z-index:90;
+    background:var(--glass-bg); border-top:1px solid var(--glass-border);
+    padding:4px 18px; display:flex; justify-content:space-between;
+    font-size:9px; color:var(--muted); letter-spacing:1px; align-items:center;
+  }
+  footer .blink{color:var(--amber); animation:blink 1s infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+  footer .right{display:flex;gap:14px;align-items:center;}
+  footer .status-msg{color:var(--amber-dim);font-size:9px;}
+
+  /* Leaflet overrides */
+  .leaflet-container{background:#06080b !important;}
+  .leaflet-control-zoom a{
+    background:var(--glass-bg) !important;
+    color:var(--text) !important;
+    border:1px solid var(--glass-border) !important;
+    border-radius:0 !important;
+    font-family:'JetBrains Mono', monospace !important;
+    font-size:14px !important;
+  }
+  .leaflet-control-zoom a:hover{background:rgba(0,229,255,0.1) !important;color:var(--amber) !important;}
+  .leaflet-control-attribution{
+    background:rgba(5,8,15,0.85) !important;
+    color:var(--muted) !important;
+    font-family:'JetBrains Mono', monospace !important;
+    font-size:7px !important;
+  }
+  .leaflet-control-attribution a{color:var(--amber-dim) !important;}
+
+  .leaflet-popup-content-wrapper{
+    background:var(--glass-bg) !important;
+    border:1px solid var(--glass-border) !important;
+    color:var(--text) !important;
+    font-family:'JetBrains Mono', monospace !important;
+    font-size:10px !important;
+    box-shadow:0 0 30px rgba(0,229,255,0.12) !important;
+    backdrop-filter:blur(12px);
+    border-radius:0 !important;
+  }
+  .leaflet-popup-tip{background:var(--glass-bg) !important;}
+  .leaflet-container a{color:var(--amber) !important;}
+  .leaflet-popup-content{margin:10px 12px !important;}
+
+  /* Geo tooltip */
+  .geo-tooltip{
+    background:var(--glass-bg) !important;
+    border:1px solid var(--glass-border) !important;
+    color:var(--text) !important;
+    font-family:'JetBrains Mono',monospace !important;
+    font-size:9px !important;
+    border-radius:0 !important;
+    box-shadow:0 0 20px rgba(0,229,255,0.1) !important;
+  }
+  .geo-tooltip .leaflet-tooltip-top:before{border-top-color:var(--glass-border) !important;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="mark">J1-NOC</span>
+    <span class="sub">TAILSCALE MESH // GEO + TOPOLOGY</span>
+    <div class="nav">
+      <a href="/">NOC</a>
+      <a href="/geo">GEO</a>
+      <a href="/mesh">MESH</a>
+      <a href="/agents">AGENTS</a>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="geo" onclick="setView('geo')">[GEO] MAP</button>
+      <button class="view-btn" data-view="topo" onclick="setView('topo')">[TOPO] MESH</button>
+    </div>
+    <div class="summary">
+      <span><span class="dot online"></span><span class="count" id="upCount">--</span><span class="muted">/ <span id="totalCount">--</span></span></span>
+      <span class="timestamp" id="lastPoll">--</span>
+    </div>
+  </div>
+</header>
+
+<!-- Action bar: search + filters -->
+<div class="action-bar">
+  <input id="searchInput" type="text" placeholder="SEARCH NODE…" oninput="onSearch()" spellcheck="false">
+  <button class="filter-chip active" data-filter="all" onclick="setFilter('all')">ALL</button>
+  <button class="filter-chip" data-filter="online" onclick="setFilter('online')">ONLINE</button>
+  <button class="filter-chip" data-filter="offline" onclick="setFilter('offline')">OFFLINE</button>
+  <button class="filter-chip" data-filter="linux" onclick="setFilter('linux')">LINUX</button>
+  <button class="filter-chip" data-filter="windows" onclick="setFilter('windows')">WIN</button>
+  <button class="filter-chip" data-filter="ios" onclick="setFilter('ios')">iOS</button>
+  <button class="filter-chip" data-filter="android" onclick="setFilter('android')">DROID</button>
+</div>
+
+<!-- GEO View -->
+<div id="geoView" class="active">
+  <div id="leafletMap" style="width:100%;height:100%;"></div>
+</div>
+
+<!-- Topology View -->
+<div id="topoView">
+  <canvas id="net"></canvas>
+</div>
+
+<!-- Popup (Canvas hover) -->
+<div class="popup" id="popup">
+  <div class="popup-title" id="pTitle"></div>
+  <div class="popup-row"><span class="dot" id="pDot"></span><span id="pStatus"></span></div>
+  <div class="popup-row"><b>IP:</b> <span id="pIP"></span></div>
+  <div class="popup-row"><b>OS:</b> <span id="pOS"></span></div>
+  <div class="popup-row"><b>RELAY:</b> <span id="pRelay"></span></div>
+  <div class="popup-row"><b>LAST SEEN:</b> <span id="pLast"></span></div>
+  <div class="popup-row"><b>TX/RX:</b> <span id="pBytes"></span></div>
+</div>
+
+<!-- Legend -->
+<div class="legend" id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981;box-shadow:0 0 5px #10b981;"></div>LINUX</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3b82f6;box-shadow:0 0 5px #3b82f6;"></div>WINDOWS</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#a78bfa;box-shadow:0 0 5px #a78bfa;"></div>iOS</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;box-shadow:0 0 5px #f59e0b;"></div>SELF</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#7aaab8;box-shadow:0 0 4px #7aaab8;"></div>OFFLINE</div>
+  <div class="legend-item" style="color:var(--muted);">── RELAY PATH</div>
+</div>
+
+<!-- Stats panel -->
+<div class="stats-panel" id="statsPanel">
+  <div class="stat-row">REGIONS: <span id="statRelays">--</span></div>
+  <div class="stat-row">BANDWIDTH: <span id="statBW">--</span></div>
+  <div class="stat-row">TX TOTAL: <span id="statTX">--</span></div>
+  <div class="stat-row">RX TOTAL: <span id="statRX">--</span></div>
+</div>
+
+<footer>
+  <div class="right"><span class="blink">●</span> LIVE &nbsp;<span class="status-msg" id="statusMsg">POLL 10s</span></div>
+  <div class="right">RELAY: <span id="footerRelay">--</span></div>
+  <div class="right">SYS.TIME: <span id="sysTime">--</span></div>
+</footer>
+
+<script>
+// ── Constants ──
+const OS_COLORS = {
+  linux:'#10b981', windows:'#3b82f6', ios:'#a78bfa',
+  android:'#f59e0b', darwin:'#ec4899', unknown:'#7aaab8',
+};
+const OS_LABELS = {linux:'LINUX',windows:'WINDOWS',ios:'iOS',android:'ANDROID',darwin:'macOS',unknown:'UNKNOWN'};
+
+// ── State ──
+let nodes = [];
+let currentView = 'geo';
+let currentFilter = 'all';
+let searchQuery = '';
+let selectedNode = null; // clicked node ip
+let map, mapInitialized = false;
+let mapMarkers = {};
+let mapArcs = [];
+let geoInitialView = true;
+
+// ── Canvas state ──
+const canvas = document.getElementById('net');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, dpr = 1;
+let topoNodes = [], topoEdges = [];
+let hover = null;
+let mouse = {x:0,y:0};
+let t0 = Date.now();
+const popup = document.getElementById('popup');
+
+// ── View Toggle ──
+function setView(v){
+  currentView = v;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  document.getElementById('geoView').classList.toggle('active', v === 'geo');
+  document.getElementById('topoView').classList.toggle('active', v === 'topo');
+  if(v === 'geo' && !mapInitialized) initMap();
+  if(v === 'geo' && mapInitialized) setTimeout(() => map.invalidateSize(), 50);
+  if(v === 'topo'){
+    // Canvas inside hidden parent has 0 dimensions — recalculate now
+    setTimeout(() => {
+      resize();
+      if(nodes.length > 0) initTopoNodes(nodes);
+    }, 50);
+  }
+}
+
+// ── Filter ──
+function setFilter(f){
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  render();
+}
+
+function onSearch(){
+  searchQuery = document.getElementById('searchInput').value.toLowerCase();
+  render();
+}
+
+function matchesFilter(n){
+  if(currentFilter === 'all') return true;
+  if(currentFilter === 'online') return n.online;
+  if(currentFilter === 'offline') return !n.online;
+  return (n.os||'').toLowerCase() === currentFilter;
+}
+
+function matchesSearch(n){
+  if(!searchQuery) return true;
+  return (n.hostname||'').toLowerCase().includes(searchQuery) ||
+         (n.ip||'').includes(searchQuery) ||
+         (n.os||'').toLowerCase().includes(searchQuery) ||
+         (n.relay_name||'').toLowerCase().includes(searchQuery);
+}
+
+// ── Helpers ──
+function fmtBytes(gb){
+  if(gb >= 1000) return (gb/1000).toFixed(2) + ' TB';
+  return gb.toFixed(2) + ' GB';
+}
+
+function nodeColor(n){
+  if(n.self) return '#f59e0b';
+  return OS_COLORS[n.os] || OS_COLORS.unknown;
+}
+
+function nodeSize(n){
+  return n.self ? 14 : (n.online ? 10 : 7);
+}
+
+// ── Popup Content ──
+function renderPopupHTML(node){
+  const sc = node.online ? 'online' : 'offline';
+  const st = node.online ? 'ONLINE' : 'OFFLINE';
+  return `
+    <div class="popup-title">${(node.hostname||'?').toUpperCase()} // ${node.ip}</div>
+    <div class="popup-row"><span class="dot ${sc}"></span><span class="${sc}">${st}</span></div>
+    <div class="popup-row"><b>OS:</b> ${OS_LABELS[node.os]||node.os||'?'}</div>
+    <div class="popup-row"><b>RELAY:</b> ${(node.relay_name||'DIRECT').toUpperCase()}</div>
+    <div class="popup-row"><b>LAST SEEN:</b> ${node.lastseen||'--'}</div>
+    <div class="popup-row"><b>TX:</b> ${fmtBytes(node.tx_gb||0)}</div>
+    <div class="popup-row"><b>RX:</b> ${fmtBytes(node.rx_gb||0)}</div>
+    <div class="popup-row" style="margin-top:6px;color:var(--amber-dim);font-size:8px;">
+      ${node.online ? '● ENCRYPTED MESH PATH' : '○ NODE OFFLINE'}
+    </div>`;
+}
+
+// ═════════════════════════════════════════
+//  GEO MAP VIEW (Leaflet)
+// ═════════════════════════════════════════
+function initMap(){
+  map = L.map('leafletMap', {
+    center: [20, -60],
+    zoom: 2,
+    zoomControl: true,
+    attributionControl: true,
+    fadeAnimation: true,
+    markerZoomAnimation: true,
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd', maxZoom: 19,
+  }).addTo(map);
+  mapInitialized = true;
+  renderGeo();
+}
+
+function makeGeoIcon(node){
+  const color = nodeColor(node);
+  const size = nodeSize(node);
+  const online = node.online;
+  const isSelf = node.self;
+  const isSelected = selectedNode === node.ip;
+  const isHighlighted = selectedNode && (selectedNode === node.ip || node._relayTo === selectedNode);
+  const glow = isSelected ? 4 : (isHighlighted ? 2 : 0);
+  const pulse = online ? `<circle cx="12" cy="12" r="${size+4}" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.5">
+    <animate attributeName="r" from="${size}" to="${size+10}" dur="${1.2+Math.random()*0.8}s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.6" to="0" dur="${1.2+Math.random()*0.8}s" repeatCount="indefinite"/>
+  </circle>` : '';
+  const selRing = isSelected ? `<circle cx="12" cy="12" r="${size+5}" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.8"/>` : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+    ${pulse}${selRing}
+    <circle cx="14" cy="14" r="${size}" fill="${color}" opacity="${online?1:0.35}" stroke="${isSelected?'#fff':color}" stroke-width="${isSelected?2.5:1}"/>
+    ${isSelf ? '<circle cx="14" cy="14" r="3" fill="#05080f"/><circle cx="14" cy="14" r="5" fill="none" stroke="#f59e0b" stroke-width="1" opacity="0.6"><animate attributeName="r" from="5" to="10" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" from="0.8" to="0" dur="1.5s" repeatCount="indefinite"/></circle>' : ''}
+  </svg>`;
+  return L.divIcon({html: svg, className: '', iconSize: [28,28], iconAnchor: [14,14], popupAnchor: [0,-16]});
+}
+
+function makeHubGeoIcon(){
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+    <circle cx="22" cy="22" r="18" fill="rgba(0,229,255,0.06)" stroke="var(--amber-dim)" stroke-width="1" stroke-dasharray="3 3">
+      <animateTransform attributeName="transform" type="rotate" from="0 22 22" to="360 22 22" dur="25s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="22" cy="22" r="8" fill="#00e5ff" opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="22" cy="22" r="3" fill="#05080f"/>
+    <circle cx="22" cy="22" r="16" fill="none" stroke="#00e5ff" stroke-width="0.8" opacity="0.4">
+      <animate attributeName="r" from="10" to="22" dur="2.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" from="0.6" to="0" dur="2.5s" repeatCount="indefinite"/>
+    </circle>
+  </svg>`;
+  return L.divIcon({html: svg, className: '', iconSize: [44,44], iconAnchor: [22,22], popupAnchor: [0,-24]});
+}
+
+function clearGeo(){
+  Object.values(mapMarkers).forEach(m => map.removeLayer(m));
+  mapMarkers = {};
+  mapArcs.forEach(a => map.removeLayer(a));
+  mapArcs = [];
+}
+
+function renderGeo(){
+  if(!mapInitialized) return;
+  clearGeo();
+
+  const filtered = nodes.filter(n => matchesFilter(n) && matchesSearch(n));
+  if(filtered.length === 0) return;
+
+  // Find hub (most common relay)
+  const peerNodes = filtered.filter(n => !n.self);
+  const relayCounts = {};
+  peerNodes.forEach(n => {
+    const k = n.relay || 'direct';
+    relayCounts[k] = (relayCounts[k]||0) + 1;
+  });
+  const topRelay = Object.keys(relayCounts).sort((a,b)=>relayCounts[b]-relayCounts[a])[0];
+  const hubNode = peerNodes.find(n => n.relay === topRelay) || peerNodes[0];
+  const hubLat = hubNode ? hubNode.lat : 25.7617;
+  const hubLon = hubNode ? hubNode.lon : -80.1918;
+
+  document.getElementById('footerRelay').textContent = hubNode ? (hubNode.relay_name||'DIRECT').toUpperCase() : '--';
+
+  // Hub marker
+  const hubMarker = L.marker([hubLat, hubLon], {icon: makeHubGeoIcon(), zIndexOffset: 1000})
+    .addTo(map)
+    .bindPopup(`<div class="popup-title">◆ DERP HUB // ${hubNode ? (hubNode.relay_name||'UNKNOWN').toUpperCase() : 'UNKNOWN'}</div>
+      <div class="popup-row">Primary relay for ${filtered.length-1} tailnet peers</div>
+      <div class="popup-row">Traffic encrypted end-to-end via Tailscale</div>`);
+  mapMarkers['__hub__'] = hubMarker;
+
+  // Animate to fit all visible nodes on first load
+  if(geoInitialView && filtered.length > 0){
+    const bounds = L.latLngBounds(filtered.map(n => [n.lat, n.lon]));
+    if(bounds.isValid()){
+      map.fitBounds(bounds, {padding: [60,60], maxZoom: 4});
+    }
+    geoInitialView = false;
+  }
+
+  // Node markers + arcs
+  filtered.forEach(node => {
+    if(node.self) return;
+    const color = nodeColor(node);
+    const opacity = node.online ? 0.5 : 0.08;
+    const arcTo = node.relay ? [hubLat, hubLon] : null;
+
+    if(arcTo && node.online){
+      const arc = L.polyline([[node.lat, node.lon], arcTo], {
+        color: selectedNode && selectedNode !== node.ip ? (selectedNode === node.ip ? '#00e5ff' : 'rgba(0,229,255,0.08)') : color,
+        weight: selectedNode === node.ip ? 2.5 : (selectedNode ? 0.5 : 1.2),
+        opacity: selectedNode && selectedNode !== node.ip ? (node._relayTo === selectedNode ? 0.4 : 0.08) : opacity,
+        dashArray: selectedNode === node.ip ? '4 4' : '6 8',
+        lineCap: 'round',
+      }).addTo(map);
+      mapArcs.push(arc);
+    }
+
+    const icon = makeGeoIcon(node);
+    const m = L.marker([node.lat, node.lon], {icon, zIndexOffset: node.online ? 500 : 100})
+      .addTo(map)
+      .bindPopup(renderPopupHTML(node), {maxWidth: 240, className: ''})
+      .on('click', () => {
+        if(selectedNode === node.ip){
+          selectedNode = null;
+        } else {
+          selectedNode = node.ip;
+          // Mark relay-to on peers
+          filtered.forEach(p => {
+            if(p.relay === node.relay && p.ip !== node.ip) p._relayTo = node.ip;
+            else p._relayTo = null;
+          });
+        }
+        renderGeo();
+      });
+    mapMarkers[node.ip] = m;
+  });
+
+  // Self marker
+  const self = filtered.find(n => n.self);
+  if(self){
+    const icon = makeGeoIcon(self);
+    const m = L.marker([self.lat, self.lon], {icon, zIndexOffset: 999})
+      .addTo(map)
+      .bindPopup(renderPopupHTML(self), {maxWidth: 240, className: ''})
+      .on('click', () => {
+        selectedNode = selectedNode === self.ip ? null : self.ip;
+        renderGeo();
+      });
+    mapMarkers['__self__'] = m;
+  }
+
+  updateStats(filtered);
+}
+
+// ═════════════════════════════════════════
+//  TOPOLOGY VIEW (Canvas)
+// ═════════════════════════════════════════
+function resize(){
+  const r = window.devicePixelRatio || 1;
+  dpr = r;
+  W = canvas.clientWidth * r;
+  H = canvas.clientHeight * r;
+  canvas.width = W;
+  canvas.height = H;
+}
+window.addEventListener('resize', () => {
+  resize();
+  if(currentView === 'topo' && nodes.length > 0) initTopoNodes(nodes);
+});
+resize();
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = (e.clientX - rect.left) * dpr;
+  mouse.y = (e.clientY - rect.top) * dpr;
+  hover = null;
+  for(let i=topoNodes.length-1;i>=0;i--){
+    const n = topoNodes[i];
+    const dx = mouse.x - n.x, dy = mouse.y - n.y;
+    if(dx*dx+dy*dy < (n.r+4)*(n.r+4)*dpr*dpr){ hover = n; break; }
+  }
+  canvas.style.cursor = hover ? 'pointer' : 'default';
+  if(hover){
+    const p = hover;
+    const x = p.x/dpr, y = p.y/dpr;
+    popup.style.left = Math.min(x+16, window.innerWidth-260)+'px';
+    popup.style.top = Math.max(y-120, 50)+'px';
+    popup.classList.add('show');
+    updatePopup(hover);
+  } else {
+    popup.classList.remove('show');
+  }
+});
+
+canvas.addEventListener('click', e => {
+  if(!hover) { selectedNode = null; return; }
+  const ip = hover._node ? hover._node.ip : null;
+  selectedNode = selectedNode === ip ? null : ip;
+  // Mark relay peers
+  topoNodes.forEach(n => {
+    const p = n._node;
+    if(p && p.relay === (hover._node||{}).relay && p.ip !== ip) p._relayTo = ip;
+    else if(p) p._relayTo = null;
+  });
+});
+
+function updatePopup(hover){
+  const n = hover._node || hover;
+  const sc = n.online ? 'online' : 'offline';
+  const st = n.online ? 'ONLINE' : 'OFFLINE';
+  document.getElementById('pTitle').textContent = (n.hostname||'?').toUpperCase() + ' // ' + n.ip;
+  const dot = document.getElementById('pDot');
+  dot.className = 'dot ' + sc;
+  document.getElementById('pStatus').textContent = st;
+  document.getElementById('pIP').textContent = n.ip;
+  document.getElementById('pOS').textContent = OS_LABELS[n.os]||n.os||'?';
+  document.getElementById('pRelay').textContent = (n.relay_name||'DIRECT').toUpperCase();
+  document.getElementById('pLast').textContent = n.lastseen||'--';
+  document.getElementById('pBytes').textContent = (n.tx_gb||0).toFixed(2)+' GB TX / '+(n.rx_gb||0).toFixed(2)+' GB RX';
+}
+
+// ── Pixel Sprites (8x8, each byte = 8 pixels) ──
+const SPRITES = {
+  linux:  [0x00,0x3C,0x42,0x5A,0x5A,0x42,0x3C,0x00],  // terminal robot
+  windows:[0x00,0x7E,0x42,0x5A,0x5A,0x42,0x7E,0x00],  // window pane
+  ios:    [0x00,0x3C,0x66,0x6A,0x6A,0x66,0x3C,0x00],  // phone
+  android:[0x00,0x66,0x7E,0x5A,0x7E,0x42,0x3C,0x00],  // droid
+  darwin: [0x00,0x3C,0x5A,0x7E,0x7E,0x42,0x3C,0x00],  // apple
+  self:   [0x18,0x3C,0x7E,0xFF,0x3C,0x66,0x42,0x00],  // star commander
+  unknown:[0x00,0x7E,0x40,0x7C,0x7C,0x40,0x7E,0x00],  // generic
+};
+
+function spriteKey(os){ return os==='?'?'unknown':os?.toLowerCase()||'unknown'; }
+
+function drawSprite(ctx, x, y, data, color, scale, alpha, flash){
+  const f = flash || 0;
+  const px = Math.round(x), py = Math.round(y), s = Math.round(scale);
+  ctx.globalAlpha = alpha;
+  for(let row=0; row<8; row++){
+    const bits = data[row];
+    for(let col=0; col<8; col++){
+      if(bits & (1 << (7-col))){
+        if(f > 0.1){
+          const blend = Math.round(255*(1-f*0.6));
+          ctx.fillStyle = `rgb(255,${Math.min(blend,240)},${Math.min(blend,240)})`;
+          ctx.shadowColor = '#fff';
+          ctx.shadowBlur = 20 * f;
+        } else {
+          ctx.fillStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 0;
+        }
+        ctx.fillRect(px + col*s, py + row*s, s, s);
+      }
+    }
+  }
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+}
+
+// ── Data Packet System ──
+let dataPackets = [];
+let gameScore = 0;
+const MAX_PACKETS = 35;
+const PACKET_SPEED = 0.4;
+const NODE_ATTRACT_RANGE = 110;
+const COLLECT_RANGE = 14;
+
+function initPackets(){
+  dataPackets = [];
+  for(let i=0; i<MAX_PACKETS; i++){
+    dataPackets.push({
+      x: 80 + Math.random()*(W-160), y: 80 + Math.random()*(H-160),
+      vx: (Math.random()-0.5)*PACKET_SPEED, vy: (Math.random()-0.5)*PACKET_SPEED,
+      size: 2 + Math.random()*2, phase: Math.random()*Math.PI*2,
+      collected: false,
+    });
+  }
+}
+
+function updatePackets(){
+  const t = (Date.now() - t0)/1000;
+  dataPackets.forEach(p => {
+    if(p.collected){
+      p.x = 80+Math.random()*(W-160); p.y = 80+Math.random()*(H-160);
+      p.collected = false;
+      p.vx = (Math.random()-0.5)*PACKET_SPEED; p.vy = (Math.random()-0.5)*PACKET_SPEED;
+      return;
+    }
+    p.vx += (Math.random()-0.5)*0.08; p.vy += (Math.random()-0.5)*0.08;
+    const ps = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+    if(ps > PACKET_SPEED){ p.vx=p.vx/ps*PACKET_SPEED; p.vy=p.vy/ps*PACKET_SPEED; }
+    p.x += p.vx; p.y += p.vy;
+    if(p.x<40||p.x>W-40){p.vx*=-1;p.x=Math.max(40,Math.min(W-40,p.x));}
+    if(p.y<40||p.y>H-40){p.vy*=-1;p.y=Math.max(40,Math.min(H-40,p.y));}
+  });
+}
+
+function attractNodesToPackets(){
+  topoNodes.forEach(n => {
+    if(n._node && n._node.self) return;
+    n._collectFlash = (n._collectFlash||0) * 0.85;
+    let closest = null, closestDist = Infinity;
+    dataPackets.forEach(p => {
+      if(p.collected) return;
+      const dx = p.x - n.x, dy = p.y - n.y;
+      const d = Math.sqrt(dx*dx+dy*dy);
+      if(d < NODE_ATTRACT_RANGE && d < closestDist){ closest = p; closestDist = d; }
+    });
+    if(closest && closestDist > COLLECT_RANGE){
+      const dx = closest.x - n.x, dy = closest.y - n.y;
+      const d = Math.max(closestDist, 1);
+      const force = 1.0 * (1 - d/NODE_ATTRACT_RANGE);
+      n.vx += dx/d * force; n.vy += dy/d * force;
+    }
+    if(closest && closestDist < COLLECT_RANGE){
+      closest.collected = true;
+      gameScore++;
+      n._collectFlash = 1.5;
+    }
+  });
+}
+
+function initTopoNodes(ns){
+  const cx = W/2, cy = H/2;
+  const spawnR = Math.min(W,H)*0.30;
+  const filtered = ns.filter(n => matchesFilter(n) && matchesSearch(n));
+  if(filtered.length === 0) return;
+  const angleOffset = Math.random() * Math.PI * 2;
+
+  topoNodes = filtered.map((n, i) => {
+    const angle = (i / filtered.length) * Math.PI * 2 + angleOffset + (Math.random()-0.5)*1.2;
+    const r = n.self ? 0 : spawnR * (0.2 + Math.random() * 0.7);
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r * 0.75;
+    const color = nodeColor(n);
+    return {
+      _node: n,
+      x, y,
+      vx: (Math.random()-0.5) * 2, vy: (Math.random()-0.5) * 2,
+      color,
+      r: n.self ? 10 : 5,
+      mass: n.self ? 5 : (0.6 + Math.random()*0.8),
+      wanderPhase: Math.random() * Math.PI * 2,
+      hostname: n.hostname, online: n.online, ip: n.ip,
+      _collectFlash: 0,
+    };
+  });
+
+  // Edges: each node to hub
+  const hub = topoNodes.find(n => n._node && n._node.self) || topoNodes[0];
+  topoEdges = [];
+  topoNodes.forEach(n => {
+    if(n === hub) return;
+    topoEdges.push({ from: hub, to: n, alpha: n.online ? 0.55 : 0.08 });
+  });
+
+  initPackets();
+}
+
+function applyPhysics(){
+  const cx = W/2, cy = H/2;
+  const repulsionDist = Math.min(W,H) * 0.14;
+  const repulsionStr = 30;
+  const gravStr = 0.003;
+  const wanderStr = 0.3;
+  const damping = 0.925;
+  const maxSpeed = 3.8;
+  const now = Date.now();
+
+  topoNodes.forEach(n => { n._collideFlash = 0; });
+
+  topoNodes.forEach(n => {
+    if(n._node && n._node.self){ n.x=cx; n.y=cy; n.vx=0; n.vy=0; return; }
+
+    // Center gravity
+    const dxC = cx - n.x, dyC = cy - n.y;
+    const distC = Math.sqrt(dxC*dxC + dyC*dyC) || 1;
+    n.vx += dxC / distC * gravStr * Math.min(distC, W*0.2) / 60;
+    n.vy += dyC / distC * gravStr * Math.min(distC, W*0.2) / 60;
+
+    // Inter-node repulsion
+    topoNodes.forEach(other => {
+      if(other === n) return;
+      const dx = n.x - other.x, dy = n.y - other.y;
+      const d = Math.sqrt(dx*dx + dy*dy) || 1;
+      if(d < repulsionDist){
+        const force = repulsionStr * (1 - d/repulsionDist) / (n.mass || 1);
+        n.vx += dx/d * force; n.vy += dy/d * force;
+        const flash = Math.max(0, 1 - d/repulsionDist);
+        n._collideFlash = Math.max(n._collideFlash||0, flash);
+        other._collideFlash = Math.max(other._collideFlash||0, flash);
+      }
+    });
+
+    // Wandering
+    n.wanderPhase += 0.015 + Math.random() * 0.025;
+    n.vx += Math.sin(now*0.0006+n.wanderPhase+n.mass*1.7) * wanderStr;
+    n.vy += Math.cos(now*0.0007+n.wanderPhase*1.3+n.mass*2.3) * wanderStr;
+
+    n.vx *= damping; n.vy *= damping;
+    const speed = Math.sqrt(n.vx*n.vx + n.vy*n.vy);
+    if(speed > maxSpeed){ n.vx=n.vx/speed*maxSpeed; n.vy=n.vy/speed*maxSpeed; }
+    n.x += n.vx; n.y += n.vy;
+
+    const pad = 60;
+    if(n.x < pad){ n.x=pad; n.vx=-n.vx*0.5; n._collideFlash=1; }
+    if(n.x > W-pad){ n.x=W-pad; n.vx=-n.vx*0.5; n._collideFlash=1; }
+    if(n.y < pad){ n.y=pad; n.vy=-n.vy*0.5; n._collideFlash=1; }
+    if(n.y > H-pad){ n.y=H-pad; n.vy=-n.vy*0.5; n._collideFlash=1; }
+  });
+}
+
+function drawFrame(){
+  const now = Date.now();
+  const t = (now - t0)/1000;
+
+  if(topoNodes.length > 0){ applyPhysics(); attractNodesToPackets(); updatePackets(); }
+
+  ctx.clearRect(0,0,W,H);
+
+  // Scanline overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  for(let y=0;y<H;y+=2) ctx.fillRect(0,y,W,1);
+
+  // ── Edges ──
+  topoEdges.forEach(e => {
+    const a = e.from, b = e.to;
+    const isSel = selectedNode && selectedNode === b._node.ip;
+    const isRelayed = selectedNode && b._node && b._node._relayTo === selectedNode;
+    const edgeAlpha = selectedNode ? (isSel ? 0.9 : (isRelayed ? 0.4 : 0.06)) : e.alpha;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = `rgba(0,229,255,${edgeAlpha * (0.6 + 0.4*Math.sin(t*2.0 + (e.to._node?.wanderPhase||0)))})`;
+    ctx.lineWidth = isSel ? 2.5 : 1.2;
+    ctx.setLineDash([6,8]);
+    ctx.lineDashOffset = -t*25;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Animated packet on edge
+    if(e.alpha > 0.1 && !selectedNode){
+      const frac = (t*0.12 + (e.to._node?.wanderPhase||0)*0.1) % 1;
+      const px = a.x + (b.x-a.x)*frac, py = a.y + (b.y-a.y)*frac;
+      ctx.beginPath();
+      ctx.arc(px, py, 2.5, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(0,229,255,${e.alpha})`;
+      ctx.shadowColor = '#00e5ff';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  });
+
+  // ── Data Packets (glowing floating dots) ──
+  dataPackets.forEach(p => {
+    if(p.collected) return;
+    const glow = 6 + 4*Math.sin(t*0.8 + p.phase);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(0,229,255,${0.4 + 0.3*Math.sin(t*0.5+p.phase)})`;
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = glow;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Inner bright core
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size*0.4, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fill();
+  });
+
+  // ── Nodes ──
+  const scale = Math.round(5.5 * dpr);
+  const cx = W/2, cy = H/2;
+
+  topoNodes.forEach(n => {
+    const flash = Math.max(n._collideFlash||0, n._collectFlash||0);
+    const alpha = n.online ? 1 : 0.35;
+    const spriteData = n._node.self ? SPRITES.self : (SPRITES[spriteKey(n._node.os)] || SPRITES.unknown);
+
+    // Pulse ring for online
+    if(n.online && n._node && !n._node.self){
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 14 + 6*Math.sin(t*1.3 + (n.wanderPhase||0)*2), 0, Math.PI*2);
+      ctx.strokeStyle = n.color;
+      ctx.globalAlpha = (0.2 + 0.2*Math.sin(t*2 + (n.wanderPhase||0))) * alpha;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = n.color;
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Self pulse
+    if(n._node && n._node.self){
+      const radius = 24 + 10*Math.sin(t*1.0);
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, radius, 0, Math.PI*2);
+      ctx.strokeStyle = '#f59e0b';
+      ctx.globalAlpha = 0.3 + 0.2*Math.sin(t*1.2);
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 20;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Selected highlight ring
+    if(selectedNode && n._node && n._node.ip === selectedNode){
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 18, 0, Math.PI*2);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.7;
+      ctx.shadowColor = '#fff';
+      ctx.shadowBlur = 14;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+
+    // Pixel sprite
+    const sx = Math.round(n.x - scale*4);
+    const sy = Math.round(n.y - scale*4);
+    drawSprite(ctx, sx, sy, spriteData, n.color, scale, alpha, flash);
+
+    // Collect flash ring
+    if(n._collectFlash && n._collectFlash > 0.1){
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 10 + n._collectFlash*8, 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(0,229,255,${n._collectFlash*0.5})`;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#00e5ff';
+      ctx.shadowBlur = 16;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Label
+    ctx.font = `${9*dpr}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = n.online ? '#e8f4ff' : '#6b8fa3';
+    ctx.globalAlpha = n.online ? 1 : 0.55;
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(n.hostname, n.x + 12*dpr, n.y + 4*dpr);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  });
+
+  // ── HUD: Game Score ──
+  const scoreAlpha = 0.7 + 0.3*Math.sin(t*0.3);
+  ctx.globalAlpha = scoreAlpha;
+  ctx.font = `bold ${12*dpr}px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#00e5ff';
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur = 8;
+  ctx.fillText(`◈ DATA: ${gameScore}`, W - 20*dpr, 30*dpr);
+  ctx.shadowBlur = 0;
+  ctx.font = `${9*dpr}px 'JetBrains Mono', monospace`;
+  ctx.fillStyle = '#6b8fa3';
+  ctx.fillText(`COLLECT FLOATING PACKETS`, W - 20*dpr, 46*dpr);
+  ctx.textAlign = 'start';
+  ctx.globalAlpha = 1;
+
+  // Hub label
+  ctx.textAlign = 'center';
+  ctx.font = `bold ${11*dpr}px 'JetBrains Mono', monospace`;
+  ctx.fillStyle = '#00e5ff';
+  ctx.globalAlpha = 0.85;
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur = 10;
+  ctx.fillText('◆ MESH PROTOCOL', cx, cy - 18);
+  ctx.font = `${9*dpr}px 'JetBrains Mono', monospace`;
+  ctx.fillStyle = '#6b8fa3';
+  ctx.shadowBlur = 0;
+  ctx.fillText(`${topoNodes.length} NODES · ${MAX_PACKETS} PACKETS · SCORE ${gameScore}`, cx, cy + 4);
+  ctx.textAlign = 'start';
+  ctx.globalAlpha = 1;
+
+  requestAnimationFrame(drawFrame);
+}
+
+// ═════════════════════════════════════════
+//  Stats
+// ═════════════════════════════════════════
+function updateStats(filtered){
+  const relays = new Set(filtered.filter(n=>n.relay_name).map(n=>n.relay_name));
+  document.getElementById('statRelays').textContent = relays.size;
+  const totalTX = filtered.reduce((s,n) => s+(n.tx_gb||0), 0);
+  const totalRX = filtered.reduce((s,n) => s+(n.rx_gb||0), 0);
+  const bw = totalTX + totalRX;
+  document.getElementById('statBW').textContent = fmtBytes(bw) + ' TOTAL';
+  document.getElementById('statTX').textContent = fmtBytes(totalTX);
+  document.getElementById('statRX').textContent = fmtBytes(totalRX);
+}
+
+// ═════════════════════════════════════════
+//  Polling & Render
+// ═════════════════════════════════════════
+function render(){
+  if(currentView === 'geo') renderGeo();
+  // Topology re-inits on next frame automatically via poll data
+}
+
+async function poll(){
+  try{
+    const r = await fetch('/api/tailscale');
+    if(!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    nodes = data.nodes || [];
+    nodes.forEach(n => { n._relayTo = null; });
+    const up = nodes.filter(n => n.online).length;
+    const upEl = document.getElementById('upCount');
+    const totalEl = document.getElementById('totalCount');
+    const lp = document.getElementById('lastPoll');
+    const sm = document.getElementById('statusMsg');
+    if(totalEl) totalEl.textContent = nodes.length;
+    if(upEl) upEl.textContent = up;
+    if(lp) lp.textContent = new Date().toISOString().slice(0,19).replace('T',' ');
+    if(sm) sm.textContent = `${new Date().toLocaleTimeString()} · ${nodes.length} NODES`;
+
+    initTopoNodes(nodes);
+    render();
+  }catch(e){
+    console.error('poll failed', e);
+    const sm = document.getElementById('statusMsg');
+    if(sm) sm.textContent = 'ERR: ' + e.message;
+  }
+}
+
+function tick(){
+  const el = document.getElementById('sysTime');
+  if(el) el.textContent = new Date().toISOString().replace('T',' ').slice(0,19);
+}
+setInterval(tick, 1000);
+tick();
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  setView('geo');
+  poll();
+  setInterval(poll, 10000);
+  requestAnimationFrame(drawFrame);
+});
+</script>
+</body>
+</html>

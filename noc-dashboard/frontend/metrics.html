@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J1-NOC // Tailscale Metrics</title>
+<style>
+  @import url('https://cdnjs.cloudflare.com/ajax/libs/jetbrains-mono/2.304/jetbrains-mono.css');
+
+  :root{
+    --bg:#05080f;
+    --panel:rgba(5,8,15,0.75);
+    --panel-border:rgba(0,229,255,0.1);
+    --amber:#00e5ff;
+    --amber-dim:#006080;
+    --amber-dark:#003052;
+    --text:#e8f4ff;
+    --muted:#6b8fa3;
+    --red:#ff0080;
+    --ok:#10b981;
+    --warn:#f59e0b;
+    --glass-bg:rgba(5,8,15,0.75);
+    --glass-border:rgba(0,229,255,0.1);
+    --gradient-brand:linear-gradient(135deg,#00e5ff,#ff0080);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #0c131a 0%, var(--bg) 60%),
+      repeating-linear-gradient(0deg, rgba(0,255,213,0.03) 0px, rgba(0,255,213,0.03) 1px, transparent 1px, transparent 3px);
+    color:var(--text);
+    font-family:'JetBrains Mono', ui-monospace, Menlo, monospace;
+    min-height:100%;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background:
+      linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
+      linear-gradient(90deg, rgba(255,0,128,0.04), rgba(0,229,255,0.02), rgba(255,0,128,0.04));
+    background-size:100% 2px, 3px 100%;
+    pointer-events:none; z-index:50;
+  }
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    background:radial-gradient(circle at 30% 40%,rgba(0,229,255,0.03),transparent 60%),radial-gradient(circle at 70% 60%,rgba(255,0,128,0.03),transparent 60%);
+    pointer-events:none; z-index:0;
+    animation:bgDrift 12s ease-in-out infinite alternate;
+  }
+  @keyframes bgDrift{
+    0%{opacity:0.5;transform:translate(0,0);}
+    100%{opacity:1;transform:translate(2%,1%);}
+  }
+  header{
+      position:sticky; top:0; z-index:90;
+      background:var(--glass-bg);
+      border-bottom:1px solid var(--glass-border);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
+      padding:12px 18px;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    }
+    .brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+    .brand .mark{font-weight:700; letter-spacing:3px; font-size:14px; background:var(--gradient-brand); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; filter:drop-shadow(0 0 12px rgba(0,229,255,0.4));}
+    .brand .sub{color:var(--muted); font-size:10px; letter-spacing:1.5px; text-transform:uppercase;}
+    .nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .nav a{color:var(--amber); text-decoration:none; font-size:10px; letter-spacing:1.5px; border:1px solid var(--amber-dark); padding:4px 8px; transition:all .2s;}
+    .nav a:hover{background:rgba(0,229,255,0.08); border-color:var(--amber-dim); box-shadow:0 0 12px rgba(0,229,255,0.15);}
+    .summary{display:flex;gap:14px;align-items:center;font-size:10px;letter-spacing:1.5px;}
+    .count{color:var(--amber); font-size:18px; font-weight:700; text-shadow:0 0 18px rgba(0,229,255,0.7);}
+    .muted{color:var(--muted);}
+
+  main{
+    padding:16px;
+  }
+  .notice{
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    padding:12px 14px;
+    color:var(--muted);
+    font-size:10px;
+    letter-spacing:.5px;
+    margin-bottom:12px;
+  }
+  .notice b{color:var(--text);}
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--glass-bg);
+    border:1px solid var(--glass-border);
+    font-size:10px;
+    letter-spacing:.5px;
+  }
+  thead th{
+    background:rgba(0,229,255,0.04);
+    color:var(--amber);
+    text-align:left;
+    padding:10px 10px;
+    border-bottom:1px solid var(--glass-border);
+    white-space:nowrap;
+    text-shadow:0 0 8px rgba(0,229,255,0.35);
+  }
+  tbody tr{
+    border-bottom:1px solid rgba(0,229,255,0.04);
+  }
+  tbody tr:hover{
+    background:rgba(0,229,255,0.03);
+  }
+  td{
+    padding:9px 10px;
+    color:var(--text);
+    vertical-align:top;
+  }
+  .dim{color:var(--muted);}
+  .ok{color:var(--ok); text-shadow:0 0 6px rgba(16,185,129,0.4);}
+  .err{color:var(--red); text-shadow:0 0 6px rgba(255,0,128,0.4);}
+  .warn{color:var(--warn); text-shadow:0 0 6px rgba(245,158,11,0.4);}
+  .pill{
+    display:inline-block;
+    padding:2px 8px;
+    border:1px solid var(--glass-border);
+    background:rgba(5,8,15,0.5);
+    color:var(--text);
+    min-width:72px;
+    text-align:center;
+  }
+  .pill.none{color:var(--muted); border-color:rgba(0,229,255,0.06); background:rgba(5,8,15,0.3);}
+  .pills{display:flex; gap:6px; flex-wrap:wrap;}
+
+  footer{
+    position:fixed; bottom:0; left:0; right:0; z-index:90;
+    background:var(--glass-bg); border-top:1px solid var(--glass-border);
+    padding:6px 18px; display:flex; justify-content:space-between;
+    font-size:10px; color:var(--muted); letter-spacing:1px;
+  }
+  footer .blink{color:var(--amber); animation:blink 1s infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+  footer .right{display:flex;gap:16px;align-items:center;}
+
+  .path-tag{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:9px; letter-spacing:.5px; color:var(--muted);
+  }
+  .path-bar{
+    width:40px; height:6px; background:rgba(5,8,15,0.5); border:1px solid var(--glass-border);
+    position:relative; overflow:hidden;
+  }
+  .path-fill{position:absolute; left:0; top:0; bottom:0; background:var(--amber); opacity:.7;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="mark">J1-NOC</span>
+    <span class="sub">Tailscale Client Metrics // PATH VISIBILITY</span>
+    <div class="nav">
+      <a href="/">NOC</a>
+      <a href="/geo">GEO MAP</a>
+      <a href="/mesh">MESH</a>
+      <a href="/metrics">METRICS</a>
+      <a href="/agents">AGENTS</a>
+    </div>
+  </div>
+  <div class="summary">
+    <span><span id="reachableCount" class="count">--</span><span class="muted"> REACHABLE / <span id="totalCount">--</span> peers</span></span>
+    <span id="lastPoll" class="muted">-- last update</span>
+  </div>
+</header>
+
+<main>
+  <div class="notice">
+    <b>SOURCE:</b> Tailscale client metrics require <b>tailscale set --webclient</b> on each node, plus ACL allowing this dashboard to reach TCP/5252.
+    <br>
+    <b>MIA HUB:</b> 37 peers route through Miami DERP region <span id="miaBadge" class="pill">--</span>.
+    Reachability summary: <span id="reachSummary" class="err">checking...</span>
+  </div>
+
+  <div style="overflow:auto; max-height:calc(100vh - 160px);">
+    <table>
+      <thead>
+        <tr>
+          <th>NODE</th>
+          <th>STATUS</th>
+          <th>RELAY</th>
+          <th>DERP REGION</th>
+          <th>TX BY PATH</th>
+          <th>RX BY PATH</th>
+          <th>ROUTES ADV / APP</th>
+          <th>HEALTH</th>
+          <th>RELAY BYTES</th>
+          <th>ERROR</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<footer>
+  <div class="right">REFRESH 10s /// PROMETHEUS TEXT PARSER</div>
+  <div class="right"><span class="blink">●</span> LIVE</div>
+  <div class="right">SYS.TIME <span id="sysTime">--</span></div>
+</footer>
+
+<script>
+function fmtVal(v){
+  if(v === null || v === undefined) return '<span class="dim">--</span>';
+  if(typeof v === 'number') return v.toLocaleString('en-US', {maximumFractionDigits:3});
+  return String(v);
+}
+function pathPills(obj){
+  if(!obj || typeof obj !== 'object') return '<span class="dim none">--</span>';
+  const allowed = {
+    direct_ipv4:'DIRECTv4', direct_ipv6:'DIRECTv6', derp:'DERP',
+    peer_relay_ipv4:'RELAYv4', peer_relay_ipv6:'RELAYv6'
+  };
+  const frags = [];
+  for(const [k,label] of Object.entries(allowed)){
+    const v = obj[k];
+    if(v === null || v === undefined) continue;
+    const pct = Math.min(v / 5, 1); // scale by 5 GB
+    frags.push(`<div class="path-tag">
+      ${label}
+      <div class="path-bar"><div class="path-fill" style="width:${(pct*100).toFixed(0)}%"></div></div>
+      ${fmtVal(v)} GB
+    </div>`);
+  }
+  if(!frags.length) return '<span class="dim none">NO DATA</span>';
+  return `<div class="pills">${frags.join('')}</div>`;
+}
+
+async function poll(){
+  try{
+    const r = await fetch('/api/tailscale/metrics');
+    if(!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    const peers = d.peers || [];
+    const reachable = peers.filter(p => p.reachable).length;
+    const online = peers.filter(p => p.online).length;
+    document.getElementById('reachableCount').textContent = reachable;
+    document.getElementById('totalCount').textContent = online;
+    document.getElementById('lastPoll').textContent = new Date().toISOString().slice(0,19).replace('T',' ');
+    document.getElementById('miaBadge').textContent = 'MIA // ' + peers.filter(p => !p.self && p.relay === 'mia').length;
+    document.getElementById('reachSummary').textContent = reachable + ' / ' + peers.length + ' metrics endpoints reachable';
+    document.getElementById('reachSummary').className = reachable ? 'ok' : 'err';
+
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    peers.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div style="color:var(--text); font-weight:600;">${(p.hostname||'?').toUpperCase()}</div>
+          <div class="dim">${p.ip||'--'}</div>
+        </td>
+        <td>
+          <span class="${p.online ? 'ok' : 'err'}">${p.online ? 'ONLINE' : 'OFFLINE'}</span>
+          <div class="dim">${p.reachable ? '<span class="ok">● METRICS</span>' : '<span class="dim">○ NO METRICS</span>'}</div>
+        </td>
+        <td><span class="dim">${(p.relay_name||'DIRECT').toUpperCase()}</span></td>
+        <td><span class="pill">${fmtVal(p.derp_region_id)}</span></td>
+        <td>${pathPills(p.tx_by_path)}</td>
+        <td>${pathPills(p.rx_by_path)}</td>
+        <td>
+          <span class="pill">${fmtVal(p.route_advertised)}</span>
+          <span class="dim">/</span>
+          <span class="pill">${fmtVal(p.route_approved)}</span>
+        </td>
+        <td><span class="${p.health_warnings ? 'warn' : 'ok'}">${p.health_warnings === null ? '--' : p.health_warnings}</span></td>
+        <td><span class="pill">${fmtVal(p.relay_forwarded_bytes)} GB</span></td>
+        <td><span class="err">${p.error || ''}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }catch(e){
+    console.error('metrics poll failed', e);
+  }
+}
+
+function tick(){
+  const el = document.getElementById('sysTime');
+  if(el) el.textContent = new Date().toISOString().replace('T',' ').slice(0,19);
+}
+setInterval(tick, 1000);
+tick();
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  poll();
+  setInterval(poll, 10000);
+});
+</script>
+</body>
+</html>

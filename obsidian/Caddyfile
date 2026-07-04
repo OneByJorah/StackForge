@@ -1,0 +1,20 @@
+# StackDeploy Obsidian Vault Web Viewer
+# Serves index.html at / and markdown vault at /vault/
+
+:80 {
+    root * /var/lib/caddy
+
+    route /vault/* {
+        uri strip_prefix /vault
+        root * /var/lib/caddy/vault
+        file_server browse
+    }
+
+    file_server
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+    }
+}

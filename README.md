@@ -57,7 +57,7 @@ StackDeploy is a **unified, production-ready Docker Compose deployment** that co
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    TAILSCALE NETWORK                            │
-│  100.92.150.99 (ollama host)                                    │
+│  YOUR_OLLAMA_HOST (ollama host)                                    │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -335,11 +335,85 @@ Client/Hermes Agent → StackDeploy (one IP)
 
 ## 📄 License
 
-MIT © Jhonattan L. Jimenez
+## Screenshots
+
+All screenshots are live captures from the local dev instance (YOUR_SERVER_IP).
+
+### Portainer Admin Panel (Port 9000)
+![Portainer](docs/screenshots/portainer.png)
+*Full container lifecycle management*
+
+### SearXNG Search (Port 8080)
+![SearXNG](docs/screenshots/searxng.png)
+*Privacy-respecting metasearch*
+
+### Camofox Browser (Port 9377)
+![Camofox](docs/screenshots/camofox.png)
+*Stealth browser automation*
+
+### Obsidian Remote (Port 8083)
+![Obsidian](docs/screenshots/obsidian.png)
+*Web-based vault access*
+
+### Honcho Memory API (Port 8081)
+![Honcho](docs/screenshots/honcho.png)
+*Long-term memory for agents*
 
 ---
 
-<div align="center">
-  <p>📦 One stack to rule them all</p>
-  <p><a href="https://github.com/OneByJorah">@OneByJorah</a></p>
-</div>
+## Hermes Integration
+
+StackDeploy ships first-class Hermes Agent skills.
+
+### Local Install Path
+
+```bash
+~/.hermes/skills/devops/stackdeploy/SKILL.md
+```
+
+### Inline Commands
+
+```bash
+# Health check
+cd /path/to/StackDeploy && bash scripts/healthcheck.sh localhost
+
+# JSON search via SearXNG
+curl -s 'http://localhost:8080/search?format=json&q=<query>&language=en'
+
+# Browser automation via Camofox
+curl -X POST http://localhost:9377/api/v1/browse \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "action": "screenshot"}'
+
+# CloakBrowser for protected sites
+cd /path/to/StackDeploy/browser-search && node scripts/cloak/cloak-fetch.mjs "https://example.com"
+
+# Honcho memory operations
+curl -X POST http://localhost:8081/api/v1/memory \
+  -H "Authorization: Bearer $HONCHO_TOKEN" \
+  -d '{"text": "Remember this..."}'
+```
+
+### Skill Files
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/healthcheck.sh` | Full stack validation |
+| `scripts/bootstrap.sh` | One-command deploy |
+| `scripts/init-honcho.sh` | Run alembic migrations |
+
+---
+
+## License
+
+MIT
+
+---
+
+## Author
+
+Built by **Jhonattan L. Jimenez** (J1admin).
+
+- GitHub: [@OneByJorah](https://github.com/OneByJorah)
+- Tailscale: `ollama` (YOUR_OLLAMA_HOST)
+- Primary GPU: RTX 3060 12GB

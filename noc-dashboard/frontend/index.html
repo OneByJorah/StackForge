@@ -3,115 +3,421 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>J1-NOC :: StackDeploy</title>
+<title>J1-NOC // StackDeploy Monitor</title>
 <style>
   @import url('https://cdnjs.cloudflare.com/ajax/libs/jetbrains-mono/2.304/jetbrains-mono.css');
 
   :root{
-    --bg: #0a0a09;
-    --panel: #121210;
-    --panel-border: #2b2417;
-    --amber: #ffb000;
-    --amber-dim: #7a5200;
-    --amber-dark: #4a3300;
-    --red: #ff3b3b;
-    --text: #e8e4d8;
-    --muted: #8a8375;
+    --bg: #05080f;
+    --panel: rgba(10,18,28,0.85);
+    --panel-border: #1f2d3d;
+    --amber: #00e5ff;
+    --amber-dim: #006080;
+    --amber-dark: #003052;
+    --red: #ff0080;
+    --text: #e8f4ff;
+    --muted: #6b8fa3;
+    --grid-line: rgba(0,229,255,0.04);
+    --glass-bg: rgba(5,8,15,0.75);
+    --glass-border: rgba(0,229,255,0.1);
+    --gradient-brand: linear-gradient(135deg,#00e5ff,#ff0080);
   }
+
   *{box-sizing:border-box;}
-  body{
+
+  @keyframes drift{
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+  }
+
+  html,body{
     margin:0;
     background:
-      radial-gradient(ellipse at top, #14120c 0%, var(--bg) 60%);
+      radial-gradient(ellipse at 20% 20%, #0a1628 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, #1a0a10 0%, transparent 60%),
+      var(--bg);
+    background-size: 100% 100%;
+    animation: drift 20s ease infinite;
     color:var(--text);
     font-family:'JetBrains Mono', ui-monospace, Menlo, monospace;
     min-height:100vh;
   }
+
   body::before{
     content:"";
     position:fixed; inset:0;
-    background:repeating-linear-gradient(0deg, rgba(255,176,0,0.02) 0px, rgba(255,176,0,0.02) 1px, transparent 1px, transparent 3px);
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
     pointer-events:none;
-    z-index:1;
+    z-index:10;
   }
-  header{
-    position:sticky; top:0; z-index:5;
-    background:rgba(10,10,9,0.92);
-    border-bottom:1px solid var(--panel-border);
-    backdrop-filter: blur(6px);
-    padding:14px 20px;
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
-  }
-  .brand{display:flex; align-items:baseline; gap:10px;}
-  .brand .mark{color:var(--amber); font-weight:700; letter-spacing:2px; font-size:15px;}
-  .brand .sub{color:var(--muted); font-size:11px; letter-spacing:1px;}
-  .summary{display:flex; align-items:center; gap:16px; font-size:12px; letter-spacing:1px;}
-  .summary .count{color:var(--amber); font-size:18px; font-weight:700;}
-  .dot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px;}
-  .dot.up{background:var(--amber); box-shadow:0 0 8px var(--amber);}
-  .dot.down{background:var(--red); box-shadow:0 0 8px var(--red);}
-  .dot.pending{background:var(--muted);}
 
-  main{padding:20px; max-width:1280px; margin:0 auto; position:relative; z-index:2;}
-  .group-label{
-    color:var(--amber-dim); font-size:11px; letter-spacing:3px; text-transform:uppercase;
-    margin:26px 0 10px 2px; border-left:2px solid var(--amber-dim); padding-left:8px;
+  body::after{
+    content:"";
+    position:fixed; inset:0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.65) 100%);
+    pointer-events:none;
+    z-index:9;
   }
-  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:12px;}
+
+  header{
+    position:sticky; top:0; z-index:20;
+    background: var(--glass-bg);
+    border-bottom:1px solid var(--glass-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding:16px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    box-shadow: 0 4px 32px rgba(0,229,255,0.08);
+  }
+
+  .brand{display:flex; align-items:baseline; gap:12px;}
+  .brand .mark{
+    font-weight:700;
+    letter-spacing:3px;
+    font-size:16px;
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    filter: drop-shadow(0 0 12px rgba(0,229,255,0.4));
+  }
+  .brand .sub{
+    color:var(--muted);
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+  }
+
+  .summary{
+    display:flex;
+    align-items:center;
+    gap:20px;
+    font-size:12px;
+    letter-spacing:1.5px;
+  }
+  .summary .count{
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size:22px;
+    font-weight:700;
+    filter: drop-shadow(0 0 12px rgba(0,229,255,0.5));
+    font-variant-numeric: tabular-nums;
+  }
+  .summary .muted{color:var(--muted);}
+  .summary .timestamp{
+    color:var(--amber-dim);
+    font-size:11px;
+    letter-spacing:1px;
+  }
+
+  .dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    display:inline-block;
+    margin-right:8px;
+    position:relative;
+  }
+  .dot.up{
+    background:var(--amber);
+    box-shadow:0 0 8px var(--amber);
+  }
+  .dot.up::before{
+    content:"";
+    position:absolute;
+    inset:-3px;
+    border-radius:50%;
+    border:1.5px solid var(--amber);
+    animation: pulse-ring 2s ease-out infinite;
+  }
+  .dot.down{
+    background:var(--red);
+    box-shadow:0 0 8px var(--red);
+  }
+  .dot.down::before{
+    content:"";
+    position:absolute;
+    inset:-3px;
+    border-radius:50%;
+    border:1.5px solid var(--red);
+    animation: pulse-ring 1.2s ease-out infinite;
+  }
+
+  @keyframes pulse-ring{
+    0%{transform:scale(0.8); opacity:1;}
+    100%{transform:scale(2.2); opacity:0;}
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1; transform:scale(1);}
+    50%{opacity:.6; transform:scale(1.3);}
+  }
+  @keyframes pulse-alert{
+    0%,100%{opacity:1; transform:scale(1);}
+    50%{opacity:.35; transform:scale(1.5);}
+  }
+
+  main{
+    padding:22px;
+    max-width:1440px;
+    margin:0 auto;
+    position:relative;
+    z-index:2;
+  }
+
+  .group-label{
+    color:var(--amber-dim);
+    font-size:11px;
+    letter-spacing:4px;
+    text-transform:uppercase;
+    margin:28px 0 12px 2px;
+    padding-bottom:6px;
+    border-bottom:1px solid var(--glass-border);
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .group-label::before{
+    content:"//";
+    color:var(--amber);
+    letter-spacing:-1px;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));
+    gap:14px;
+  }
+
   .card{
     background:var(--panel);
     border:1px solid var(--panel-border);
-    padding:14px 14px 10px;
+    padding:16px 16px 12px;
     position:relative;
-    transition:border-color .3s;
+    transition:border-color .3s, box-shadow .3s;
+    backdrop-filter: blur(6px);
+    overflow:hidden;
+    border-radius:0;
   }
-  .card.up{border-color: var(--amber-dark);}
-  .card.down{border-color: var(--red); animation:flicker 1.4s infinite;}
-  @keyframes flicker{0%,100%{box-shadow:0 0 0 rgba(255,59,59,0);} 50%{box-shadow:0 0 12px rgba(255,59,59,0.35);}}
-  .card-top{display:flex; justify-content:space-between; align-items:flex-start;}
-  .svc-name{font-size:13px; font-weight:700; letter-spacing:0.5px; color:var(--text);}
-  .svc-endpoint{font-size:10px; color:var(--muted); margin-top:3px;}
-  .svc-status{font-size:10px; letter-spacing:1px;}
-  .svc-status.up{color:var(--amber);}
-  .svc-status.down{color:var(--red);}
-  .metrics{display:flex; gap:14px; margin-top:10px; font-size:11px; color:var(--muted);}
-  .metrics b{color:var(--text); font-weight:600;}
-  canvas.scope{display:block; width:100%; height:36px; margin-top:10px;}
-  .err{font-size:10px; color:var(--red); margin-top:6px; word-break:break-word;}
+  .card::before{
+    content:"";
+    position:absolute;
+    top:-1px; left:-1px; right:-1px; bottom:-1px;
+    border:1px solid transparent;
+    border-radius:inherit;
+    background: linear-gradient(135deg, var(--amber) 0%, transparent 35%, transparent 65%, var(--red) 100%) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity:.35;
+    pointer-events:none;
+  }
+  .card::after{
+    content:"";
+    position:absolute;
+    top:0; left:0;
+    width:100%; height:2px;
+    background:linear-gradient(90deg, transparent, var(--amber), var(--red), transparent);
+    opacity:.7;
+  }
+
+  .card.up{
+    border-color: rgba(0,229,255,0.2);
+    box-shadow: 0 0 24px rgba(0,229,255,0.06), inset 0 0 24px rgba(0,229,255,0.02);
+  }
+  .card.down{
+    border-color: rgba(255,0,128,0.45);
+    box-shadow: 0 0 26px rgba(255,0,128,0.1), inset 0 0 26px rgba(255,0,128,0.03);
+    animation: border-flash 1.6s infinite;
+  }
+  @keyframes border-flash{
+    0%,100%{border-color: rgba(255,0,128,0.45);}
+    50%{border-color: rgba(255,0,128,0.9);}
+  }
+
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .svc-name{
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:.5px;
+    color:var(--text);
+  }
+  .svc-endpoint{
+    font-size:10px;
+    color:var(--muted);
+    margin-top:4px;
+    letter-spacing:.5px;
+  }
+  .svc-status{
+    font-size:10px;
+    letter-spacing:1.5px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .svc-status.up{color:var(--amber); text-shadow:0 0 8px rgba(0,229,255,0.4);}
+  .svc-status.down{color:var(--red); text-shadow:0 0 8px rgba(255,0,128,0.4);}
+
+  .metrics{
+    display:flex;
+    gap:14px;
+    margin-top:12px;
+    font-size:10px;
+    color:var(--muted);
+    letter-spacing:.5px;
+  }
+  .metrics b{
+    color:var(--text);
+    font-weight:600;
+    text-shadow:0 0 6px rgba(0,229,255,0.2);
+  }
+
+  canvas.scope{
+    display:block;
+    width:100%;
+    height:40px;
+    margin-top:12px;
+    border-top:1px solid var(--glass-border);
+  }
+
+  .err{
+    font-size:10px;
+    color:var(--red);
+    margin-top:8px;
+    word-break:break-word;
+    letter-spacing:.3px;
+  }
+
   a.open{
-    font-size:10px; color:var(--amber-dim); text-decoration:none; border-bottom:1px dotted var(--amber-dark);
+    font-size:10px;
+    color:var(--amber-dim);
+    text-decoration:none;
+    letter-spacing:1px;
+    border-bottom:1px dotted var(--amber-dark);
+    transition: color .2s;
   }
-  a.open:hover{color:var(--amber);}
+  a.open:hover{
+    color:var(--amber);
+    text-shadow:0 0 8px rgba(0,229,255,0.4);
+  }
 
   .portainer-box{
-    margin-top:26px; border:1px solid var(--panel-border); background:var(--panel); padding:14px;
+    margin-top:28px;
+    border:1px solid var(--glass-border);
+    background:var(--glass-bg);
+    padding:16px;
+    backdrop-filter: blur(6px);
   }
-  .portainer-box.off{color:var(--muted); font-size:11px;}
-  footer{text-align:center; color:var(--muted); font-size:10px; padding:24px; letter-spacing:1px;}
+  .portainer-box .group-label{morder:0; margin-bottom:8px;}
+  .portainer-box.off{color:var(--muted); font-size:11px; letter-spacing:.5px;}
+
+  footer{
+    text-align:center;
+    color:var(--muted);
+    font-size:10px;
+    padding:22px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    border-top:1px solid var(--glass-border);
+    margin-top:32px;
+  }
+
+  .system-bar{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    background:var(--glass-bg);
+    border-top:1px solid var(--glass-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding:8px 24px;
+    display:flex;
+    justify-content:space-between;
+    font-size:10px;
+    color:var(--muted);
+    letter-spacing:1px;
+    z-index:25;
+  }
+  .system-bar .left, .system-bar .right{
+    display:flex;
+    gap:18px;
+    align-items:center;
+  }
+  .system-bar .blink{
+    color:var(--amber);
+    animation: blink 1s infinite;
+  }
+  @keyframes blink{
+    0%,100%{opacity:1;}
+    50%{opacity:0;}
+  }
+
+  .spinner{
+    display:inline-block;
+    width:10px; height:10px;
+    border:1px solid var(--amber-dim);
+    border-top-color:var(--amber);
+    border-radius:50%;
+    animation: spin 1s linear infinite;
+    margin-right:6px;
+    vertical-align:middle;
+  }
+  @keyframes spin{
+    to{transform:rotate(360deg);}
+  }
 </style>
 </head>
 <body>
+
 <header>
   <div class="brand">
     <span class="mark">J1-NOC</span>
-    <span class="sub">STACKDEPLOY MONITOR</span>
+    <span class="sub">StackDeploy Monitor //节点状态追踪系统</span>
   </div>
   <div class="summary">
-    <span><span class="count" id="upCount">--</span> <span class="muted">/ <span id="totalCount">--</span> ONLINE</span></span>
-    <span id="lastPoll" style="color:var(--muted)">-- last poll</span>
+    <span><a href="/geo" style="color:var(--amber);text-decoration:none;letter-spacing:1.5px;font-size:11px;margin-right:12px;">[ GEO ]</a><a href="/mesh" style="color:var(--amber);text-decoration:none;letter-spacing:1.5px;font-size:11px;margin-right:12px;">[ MESH ]</a><a href="/metrics" style="color:var(--amber);text-decoration:none;letter-spacing:1.5px;font-size:11px;margin-right:12px;">[ METRICS ]</a><a href="/agents" style="color:var(--amber);text-decoration:none;letter-spacing:1.5px;font-size:11px;margin-right:12px;">[ AGENTS ]</a><a href="http://YOUR_SERVER_IP:51763" target="_blank" style="color:var(--amber-dim);text-decoration:none;letter-spacing:1.5px;font-size:11px;margin-right:12px;">[ MC ⟶ ]</a></span>
+    <span><span class="count" id="upCount">--</span><span class="muted"> / <span id="totalCount">--</span> ONLINE</span></span>
+    <span class="timestamp" id="lastPoll">--</span>
   </div>
 </header>
 
 <main>
   <div id="groups"></div>
-  <div class="portainer-box" id="portainerBox">Portainer: not configured</div>
+  <div class="portainer-box" id="portainerBox">
+    <div class="group-label">Portainer</div>
+    <div class="off">Initializing...</div>
+  </div>
 </main>
 
 <footer>READ-ONLY MONITOR — EACH SERVICE STILL EXPOSES ITS OWN PORT / API DIRECTLY</footer>
 
+<div class="system-bar">
+  <div class="left">
+    <span><span class="spinner"></span>LIVE FEED</span>
+    <span>INTERVAL: <span id="pollInterval">--</span>s</span>
+    <span>NODES: <span id="nodeCount">--</span></span>
+  </div>
+  <div class="right">
+    <span>RECONNECT: <span class="blink">AUTO</span></span>
+    <span>SYS.TIME: <span id="sysTime">--</span></span>
+    <span>v3.0.0 // StackDeploy</span>
+  </div>
+</div>
+
 <script>
-const GROUP_ORDER = ["Search & Browser", "Memory & Knowledge", "Notes & Docs", "Inference", "Headroom"];
+const GROUP_ORDER = ["Search & Browser","Memory & Knowledge","Notes & Docs","Inference","Headroom"];
 let host = window.location.hostname;
+let sysTimer = null;
 
 function fmtAgo(ts){
   if(!ts) return '--';
@@ -123,51 +429,79 @@ function fmtAgo(ts){
 
 function drawScope(canvas, history){
   const ctx = canvas.getContext('2d');
-  const w = canvas.width = canvas.clientWidth * devicePixelRatio;
-  const h = canvas.height = canvas.clientHeight * devicePixelRatio;
+  const dpr = devicePixelRatio || 1;
+  const w = canvas.width = canvas.clientWidth * dpr;
+  const h = canvas.height = canvas.clientHeight * dpr;
   ctx.clearRect(0,0,w,h);
+
   if(!history || history.length === 0) return;
+
   const n = history.length;
   const bw = w / Math.max(n, HISTORY_SLOTS());
   const maxLatency = Math.max(50, ...history.map(p => p.latency_ms || 0));
+
   history.forEach((p, i) => {
     const x = i * bw;
-    let bh, color;
+    let bh, color, alpha;
     if(p.up){
       bh = Math.max(2, (p.latency_ms || 1) / maxLatency * h);
-      color = '#ffb000';
+      color = '#00e5ff';
+      alpha = 0.25 + 0.75 * (i / n);
     } else {
-      bh = h * 0.85;
-      color = '#ff3b3b';
+      bh = h * 0.8;
+      color = '#ff0080';
+      alpha = 0.6;
     }
     ctx.fillStyle = color;
-    ctx.globalAlpha = 0.35 + 0.65 * (i / n);
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
     ctx.fillRect(x, h - bh, Math.max(1, bw - 1), bh);
+    ctx.shadowBlur = 0;
   });
   ctx.globalAlpha = 1;
 }
+
 function HISTORY_SLOTS(){ return 20; }
 
 function render(data){
-  const services = data.services;
+  const services = data.services || {};
   const ids = Object.keys(services);
   const upIds = ids.filter(id => services[id].up);
-  document.getElementById('upCount').textContent = upIds.length;
-  document.getElementById('totalCount').textContent = ids.length;
-  document.getElementById('lastPoll').textContent = fmtAgo(data.last_run) + ' · every ' + data.poll_interval + 's';
+  const upEl = document.getElementById('upCount');
+  const totalEl = document.getElementById('totalCount');
+
+  if(totalEl) totalEl.textContent = ids.length;
+  if(upEl) upEl.textContent = upIds.length;
+
+  const lp = document.getElementById('lastPoll');
+  if(lp) lp.textContent = fmtAgo(data.last_run) + ' · every ' + (data.poll_interval || '--') + 's';
+
+  const pi = document.getElementById('pollInterval');
+  if(pi) pi.textContent = data.poll_interval || '--';
+  const nc = document.getElementById('nodeCount');
+  if(nc) nc.textContent = ids.length;
 
   const groups = {};
   ids.forEach(id => {
     const s = services[id];
-    (groups[s.group] = groups[s.group] || []).push(s);
+    const g = s.group || 'UNGROUPED';
+    (groups[g] = groups[g] || []).push(s);
   });
 
   const container = document.getElementById('groups');
+  if(!container) return;
   container.innerHTML = '';
-  GROUP_ORDER.filter(g => groups[g]).forEach(groupName => {
+
+  const ordered = GROUP_ORDER.filter(g => groups[g]);
+  Object.keys(groups).forEach(g => {
+    if(!GROUP_ORDER.includes(g)) ordered.push(g);
+  });
+
+  ordered.forEach(groupName => {
     const label = document.createElement('div');
     label.className = 'group-label';
-    label.textContent = groupName;
+    label.textContent = groupName.toUpperCase();
     container.appendChild(label);
 
     const grid = document.createElement('div');
@@ -176,8 +510,8 @@ function render(data){
       const card = document.createElement('div');
       card.className = 'card ' + (s.up ? 'up' : 'down');
       const openLink = s.public_port
-        ? `<a class="open" href="http://${host}:${s.public_port}" target="_blank" rel="noopener">open service :${s.public_port} →</a>`
-        : `<span class="svc-endpoint">internal only — not published to host</span>`;
+        ? `<a class="open" href="http://${host}:${s.public_port}" target="_blank" rel="noopener">OPEN SERVICE :${s.public_port} →</a>`
+        : `<span class="svc-endpoint">INTERNAL — NOT PUBLISHED TO HOST</span>`;
       card.innerHTML = `
         <div class="card-top">
           <div>
@@ -187,12 +521,12 @@ function render(data){
           <div class="svc-status ${s.up ? 'up' : 'down'}">${s.up ? 'ONLINE' : 'DOWN'}</div>
         </div>
         <div class="metrics">
-          <span>latency <b>${s.latency_ms != null ? s.latency_ms + 'ms' : '--'}</b></span>
-          <span>kind <b>${s.kind}</b></span>
-          ${s.code ? `<span>http <b>${s.code}</b></span>` : ''}
+          <span>LATENCY <b>${s.latency_ms != null ? s.latency_ms + 'ms' : '--'}</b></span>
+          <span>KIND <b>${s.kind}</b></span>
+          ${s.code ? `<span>HTTP <b>${s.code}</b></span>` : ''}
         </div>
         <canvas class="scope"></canvas>
-        ${s.error ? `<div class="err">${s.error}</div>` : ''}
+        ${s.error ? `<div class="err">⚠ ${s.error}</div>` : ''}
         ${openLink}
       `;
       grid.appendChild(card);
@@ -203,32 +537,45 @@ function render(data){
   });
 
   const pBox = document.getElementById('portainerBox');
-  if(!data.portainer.configured){
-    pBox.className = 'portainer-box off';
-    pBox.textContent = 'Portainer: not configured (set PORTAINER_URL + PORTAINER_API_KEY)';
-  } else {
-    const containers = data.portainer.containers || [];
-    pBox.className = 'portainer-box';
-    if(containers.length && containers[0].error){
-      pBox.innerHTML = `<div class="group-label" style="margin-top:0">Portainer</div><div class="err">${containers[0].error}</div>`;
+  if(pBox){
+    const cfg = (data.portainer || {}).configured;
+    pBox.innerHTML = '<div class="group-label">Portainer</div>';
+    if(!cfg){
+      pBox.className = 'portainer-box off';
+      pBox.innerHTML += '<div>NOT CONFIGURED — SET PORTAINER_URL + PORTAINER_API_KEY</div>';
     } else {
-      pBox.innerHTML = `<div class="group-label" style="margin-top:0">Portainer — ${containers.length} containers</div>` +
-        containers.map(c => `<div class="svc-endpoint">${c.state === 'running' ? '●' : '○'} ${c.name} — ${c.status}</div>`).join('');
+      const containers = (data.portainer || {}).containers || [];
+      pBox.className = 'portainer-box';
+      if(containers.length && containers[0].error){
+        pBox.innerHTML += `<div class="err">⚠ ${containers[0].error}</div>`;
+      } else {
+        pBox.innerHTML += containers.map(c =>
+          `<div class="svc-endpoint" style="margin-top:4px;">${c.state === 'running' ? '●' : '○'} ${c.name} — ${c.status}</div>`
+        ).join('');
+      }
     }
   }
 }
 
+function tick(){
+  const el = document.getElementById('sysTime');
+  if(el) el.textContent = new Date().toISOString().replace('T', ' ').slice(0, 19);
+}
+sysTimer = setInterval(tick, 1000);
+tick();
+
 async function poll(){
   try{
-    const res = await fetch('/api/status');
-    const data = await res.json();
+    const r = await fetch('/api/status', {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    const data = await r.json();
     render(data);
   }catch(e){
-    document.getElementById('lastPoll').textContent = 'connection error';
+    console.error('poll failed', e);
   }
 }
 poll();
-setInterval(poll, 5000);
+setInterval(poll, 10000);
 </script>
 </body>
 </html>

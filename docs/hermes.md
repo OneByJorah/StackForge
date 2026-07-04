@@ -22,16 +22,16 @@ curl -s -o /dev/null -w 'qdrant=%{http_code}\n' http://localhost:6333/
   - Web UI / REST API root
 - Obsidian
   - Web UI: `http://localhost:8083`
-  - Vault path: `/home/j1admin/ObsidianVault`
+  - Vault path: `/path/to/your/vault`
 
 ## BrowserSearch CLI
 ```bash
-cd /home/j1admin/StackDeploy/browser-search
+cd /path/to/StackDeploy/browser-search
 node scripts/cloak/cloak-fetch.mjs "https://example.com" --format markdown
 ```
 
 ## Smoke test
 ```bash
-cd /home/j1admin/StackDeploy
+cd /path/to/StackDeploy
 bash tests/smoke.sh
 ```
