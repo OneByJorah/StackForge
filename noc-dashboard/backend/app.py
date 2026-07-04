@@ -10,14 +10,13 @@ service still exposes its own port/API directly, exactly as before.
 """
 import asyncio
 import os
-import socket
 import time
 from collections import deque
 from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.static import StaticFiles
 
 
@@ -209,8 +208,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "SEARXNG_URL=http://YOUR_SERVER_IP:8080",
             "config": "Hermes can use SearXNG as an internal tool when configured.",
-            "notes": "Supports POST /search with q=query&format=json"
-        }
+            "notes": "Supports POST /search with q=query&format=json",
+        },
     },
     "qdrant": {
         "name": "Qdrant",
@@ -222,8 +221,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "QDRANT_URL=http://YOUR_SERVER_IP:6333",
             "config": "Set QDRANT_HOST and QDRANT_PORT. Qdrant's REST API is at /collections.",
-            "notes": "v1.18.2. Full REST API with Swagger at /docs."
-        }
+            "notes": "v1.18.2. Full REST API with Swagger at /docs.",
+        },
     },
     "redis": {
         "name": "Redis",
@@ -235,8 +234,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "REDIS_URL=redis://YOUR_SERVER_IP:6379",
             "config": "Standard REDIS_URL env var. No auth configured.",
-            "notes": "TCP protocol. Use redis-py or redis-cli."
-        }
+            "notes": "TCP protocol. Use redis-py or redis-cli.",
+        },
     },
     "postgresql": {
         "name": "PostgreSQL",
@@ -248,8 +247,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "DATABASE_URL=postgresql://postgres@YOUR_SERVER_IP:5432/postgres",
             "config": "Set PGUSER/PGPASSWORD in .env. Honcho uses this as its memory backend.",
-            "notes": "Port 5432. TCP protocol. Also serves Honcho."
-        }
+            "notes": "Port 5432. TCP protocol. Also serves Honcho.",
+        },
     },
     "ollama": {
         "name": "Ollama",
@@ -261,8 +260,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "OLLAMA_HOST=http://YOUR_SERVER_IP:11434",
             "config": "Set model.base_url=http://YOUR_SERVER_IP:11434 and provider=custom:ollama with model ollama/<name>.",
-            "notes": "OpenAI-compatible API at /v1/. Models: currently none loaded. Use 'ollama pull <model>'."
-        }
+            "notes": "OpenAI-compatible API at /v1/. Models: currently none loaded. Use 'ollama pull <model>'.",
+        },
     },
     "mission_control": {
         "name": "Mission Control Dashboard",
@@ -274,8 +273,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "MISSION_CONTROL_URL=http://YOUR_SERVER_IP:51763",
             "config": "SSE streaming at /api/snapshot. Board API at /api/board. Content at /api/content.",
-            "notes": "Python HTTPServer. Poll /api/snapshot for live state."
-        }
+            "notes": "Python HTTPServer. Poll /api/snapshot for live state.",
+        },
     },
     "noc_dashboard": {
         "name": "NOC Dashboard",
@@ -287,9 +286,9 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "NOC_URL=http://YOUR_SERVER_IP:9500",
             "config": "FastAPI. Live service health at /api/status.",
-            "notes": "Period 10s poll. Service history available at /api/status."
-        }
-    }
+            "notes": "Period 10s poll. Service history available at /api/status.",
+        },
+    },
 }
 
 
@@ -308,7 +307,7 @@ async def api_services():
         "services": SERVICE_REGISTRY,
         "hermes_setup_command": (
             f"source <(curl -s http://{TAILSCALE_IP}:9500/api/services.sh)"
-        )
+        ),
     })
 
 
@@ -374,7 +373,7 @@ async def api_status():
             "ollama_host": os.getenv("OLLAMA_HOST", "ollama"),
             "ollama_port": int(os.getenv("OLLAMA_PORT", "11434")),
             "prod_hosts": os.getenv("PROD_HOSTS", ""),
-        }
+        },
     })
 
 

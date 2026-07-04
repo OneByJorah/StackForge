@@ -4,18 +4,17 @@ Mounts static files from local frontend/ dir and adds localhost fallback
 for services so health checks work even without Docker network.
 """
 import asyncio
-import subprocess
-import os
-import socket
-import time
 import json
+import os
+import subprocess
+import time
 from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 # DERP relay geo coordinates (relay → nearest real datacenter)
@@ -251,7 +250,7 @@ async def api_status():
             "ollama_host": os.getenv("OLLAMA_HOST", "localhost"),
             "ollama_port": int(os.getenv("OLLAMA_PORT", "11434")),
             "prod_hosts": os.getenv("PROD_HOSTS", ""),
-        }
+        },
     })
 
 
@@ -263,7 +262,7 @@ async def tailscale_nodes():
         try:
             r = subprocess.run(
                 ["tailscale", "status", "--json"],
-                capture_output=True, text=True, timeout=8
+                capture_output=True, text=True, timeout=8,
             )
             data = json.loads(r.stdout)
             peers = data.get("Peer", {})
@@ -319,16 +318,16 @@ def _parse_prometheus_text(text: str) -> dict:
     current_meta = {}
     for raw in text.splitlines():
         line = raw.strip()
-        if not line or line.startswith('#'):
-            if line.startswith('# TYPE '):
+        if not line or line.startswith("#"):
+            if line.startswith("# TYPE "):
                 parts = line.split()
                 if len(parts) >= 4:
                     current_meta[parts[2]] = parts[3]
             continue
         # metric_name{labels} value
-        if ' ' not in line:
+        if " " not in line:
             continue
-        name_part, value_part = line.rsplit(' ', 1)
+        name_part, value_part = line.rsplit(" ", 1)
         name_part = name_part.strip()
         value_part = value_part.strip()
         try:
@@ -394,13 +393,13 @@ async def tailscale_metrics():
                             entry["tx_by_path"] = {
                                 p: pick(p, "outbound") for p in [
                                     "direct_ipv4", "direct_ipv6", "derp",
-                                    "peer_relay_ipv4", "peer_relay_ipv6"
+                                    "peer_relay_ipv4", "peer_relay_ipv6",
                                 ]
                             }
                             entry["rx_by_path"] = {
                                 p: pick(p, "inbound") for p in [
                                     "direct_ipv4", "direct_ipv6", "derp",
-                                    "peer_relay_ipv4", "peer_relay_ipv6"
+                                    "peer_relay_ipv4", "peer_relay_ipv6",
                                 ]
                             }
                             derp = parsed.get("tailscaled_home_derp_region_id")
@@ -422,7 +421,7 @@ async def tailscale_metrics():
     except Exception as exc:
         return JSONResponse({
             "error": str(exc),
-            "peers": _metrics_cache.get("data", [])
+            "peers": _metrics_cache.get("data", []),
         }, status_code=500)
     return JSONResponse({"ts": _metrics_cache["ts"], "peers": _metrics_cache["data"]})
 
@@ -447,8 +446,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "SEARXNG_URL=http://YOUR_SERVER_IP:8080",
             "config": "Hermes can use SearXNG as an internal tool when configured.",
-            "notes": "Supports POST /search with q=query&format=json"
-        }
+            "notes": "Supports POST /search with q=query&format=json",
+        },
     },
     "qdrant": {
         "name": "Qdrant",
@@ -460,7 +459,7 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "QDRANT_URL=http://YOUR_SERVER_IP:6333",
             "config": "Set QDRANT_HOST and QDRANT_PORT. Qdrant's REST API is at /collections.",
-            "notes": "v1.18.2. Full REST API with Swagger at /docs."
+            "notes": "v1.18.2. Full REST API with Swagger at /docs.",
         },
         "agent_isolation": {
             "type": "collection-prefix",
@@ -469,8 +468,8 @@ SERVICE_REGISTRY = {
             "writer": "writer_memories",
             "marketer": "marketer_memories",
             "coder": "coder_memories",
-            "notes": "Use per-agent collection names. All agents share host but write to isolated collections."
-        }
+            "notes": "Use per-agent collection names. All agents share host but write to isolated collections.",
+        },
     },
     "redis": {
         "name": "Redis",
@@ -481,12 +480,12 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "DATABASE_URL=postgresql://postgres@YOUR_SERVER_IP:5432/honcho",
             "config": "Honcho manages all connections. Direct access bypasses workspace isolation.",
-            "notes": "Port 5432. Access only through Honcho API to maintain per-agent isolation."
+            "notes": "Port 5432. Access only through Honcho API to maintain per-agent isolation.",
         },
         "agent_isolation": {
             "type": "honcho-managed",
-            "notes": "Never connect directly. Honcho API at port 8000 provides workspace-level isolation."
-        }
+            "notes": "Never connect directly. Honcho API at port 8000 provides workspace-level isolation.",
+        },
     },
     "ollama": {
         "name": "Ollama",
@@ -498,8 +497,8 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "OLLAMA_HOST=http://YOUR_SERVER_IP:11434",
             "config": "Set model.base_url=http://YOUR_SERVER_IP:11434 and provider=custom:ollama with model ollama/<name>.",
-            "notes": "OpenAI-compatible API at /v1/. Stateless — no isolation concerns."
-        }
+            "notes": "OpenAI-compatible API at /v1/. Stateless — no isolation concerns.",
+        },
     },
     "honcho": {
         "name": "Honcho Memory",
@@ -511,7 +510,7 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "HONCHO_URL=http://YOUR_SERVER_IP:8000",
             "config": "Honcho memory provider. Uses PostgreSQL + Redis underneath. Per-agent workspaces.",
-            "notes": "v3 API at /v3/. Workspace isolation per agent."
+            "notes": "v3 API at /v3/. Workspace isolation per agent.",
         },
         "agent_isolation": {
             "type": "workspace",
@@ -520,8 +519,8 @@ SERVICE_REGISTRY = {
             "writer": "wri_d89772f564d55757b",
             "marketer": "mar_50ce547eb4db51e7a",
             "coder": "cod_3e1e2656fd1d5e85a",
-            "notes": "Each agent has a dedicated Honcho workspace. All memory/data scoped within it."
-        }
+            "notes": "Each agent has a dedicated Honcho workspace. All memory/data scoped within it.",
+        },
     },
     "mission_control": {
         "name": "Mission Control Dashboard",
@@ -533,12 +532,12 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "MISSION_CONTROL_URL=http://YOUR_SERVER_IP:51763",
             "config": "SSE streaming at /api/snapshot. Board API at /api/board. Content at /api/content.",
-            "notes": "Python HTTPServer. Poll /api/snapshot for live state. Shared kanban board."
+            "notes": "Python HTTPServer. Poll /api/snapshot for live state. Shared kanban board.",
         },
         "agent_isolation": {
             "type": "shared",
-            "notes": "Single kanban board shared across all agents. No isolation — designed for coordination."
-        }
+            "notes": "Single kanban board shared across all agents. No isolation — designed for coordination.",
+        },
     },
     "noc_dashboard": {
         "name": "NOC Dashboard",
@@ -550,9 +549,9 @@ SERVICE_REGISTRY = {
         "hermes_usage": {
             "env_var": "NOC_URL=http://YOUR_SERVER_IP:9500",
             "config": "FastAPI. Live service health at /api/status. Service registry at /api/services.json.",
-            "notes": "Period 10s poll. Read-only. No isolation concerns."
-        }
-    }
+            "notes": "Period 10s poll. Read-only. No isolation concerns.",
+        },
+    },
 }
 
 
@@ -571,7 +570,7 @@ async def api_services():
         "services": SERVICE_REGISTRY,
         "hermes_setup_command": (
             f"source <(curl -s http://{TAILSCALE_IP}:9500/api/services.sh)"
-        )
+        ),
     })
 
 

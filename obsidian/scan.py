@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Scan vault directory and generate index.json for the web viewer."""
-import json, sys
+import json
+import sys
 from pathlib import Path
 
 VAULT = Path(sys.argv[1] if len(sys.argv) > 1 else "/usr/share/caddy/vault")
