@@ -33,7 +33,6 @@ docker compose up -d
 | `SERVER_IP` | Tailscale or local IP used in docs/examples | Required |
 | `HONCHO_TOKEN` | Auth token for Honcho API | Optional |
 | `HONCHO_DB_PASSWORD` | Postgres password for Honcho backend | Required |
-| `POSTGRES_PASSWORD` | Postgres password | Required |
 | `OBSIDIAN_VAULT_PATH` | Host path for the Obsidian vault | Optional |
 
 Keep `.env` out of VCS. Prefer `.env.example` placeholders in docs.
@@ -45,8 +44,8 @@ Keep `.env` out of VCS. Prefer `.env.example` placeholders in docs.
 | Service | Port |
 |---|---|
 | SearXNG | `8080` |
-| Honcho API | `8081` |
-| Chrome CDP | `9222` |
+| Honcho API | `8000` |
+| Selenium Chrome | `4444` |
 | Qdrant | `6333` |
 | Obsidian Web | `8083` |
 
@@ -90,7 +89,3 @@ docker compose logs -f
 MIT
 
 ---
-
-## Author
-
-Built by **Jhonattan L. Jimenez**.

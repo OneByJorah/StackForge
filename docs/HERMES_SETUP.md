@@ -38,7 +38,7 @@ browser:
 
 honcho:
   enabled: true
-  base_url: "http://<SERVER_IP>:8081"
+  base_url: "http://<SERVER_IP>:8000"
   workspace: hermes-main
 
 obsidian:
@@ -55,7 +55,3 @@ For local Obsidian, open the vault folder in the desktop app. Hermes reads and w
 MIT
 
 ---
-
-## Author
-
-Built by **Jhonattan L. Jimenez**.
