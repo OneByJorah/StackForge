@@ -28,19 +28,17 @@ FAILED=0
 
 echo "Core Infrastructure:"
 check_service "SearXNG" "http://$SERVER:8080/search?q=healthcheck&format=json" "results" || FAILED=1
-check_service "Camofox" "http://$SERVER:9377/health" "ok" || FAILED=1
-check_service "CloakBrowser" "http://$SERVER:9222/json/version" "Browser" || FAILED=1
-check_service "Obsidian" "http://$SERVER:8083/" "Obsidian" || FAILED=1
+check_service "Obsidian Viewer" "http://$SERVER:8083/" "Obsidian" || FAILED=1
 check_service "Qdrant" "http://$SERVER:6333/readyz" "ready" || FAILED=1
+check_service "Selenium Web Automation" "http://$SERVER:4444/status" "" || FAILED=1
 
 echo ""
 echo "Memory Layer:"
-check_service "Honcho API" "http://$SERVER:8081/healthz" "" || FAILED=1
+check_service "Honcho API" "http://$SERVER:8000/health" "" || FAILED=1
 
 echo ""
-echo "Admin:"
-check_service "Portainer" "http://$SERVER:9000/" "" || FAILED=1
-check_service "NOC Dashboard" "http://$SERVER:9500/api/healthz" "" || FAILED=1
+echo "Database & Cache:"
+check_service "CouchDB" "http://$SERVER:5984/" "" || FAILED=1
 
 echo ""
 if [[ $FAILED -eq 0 ]]; then
