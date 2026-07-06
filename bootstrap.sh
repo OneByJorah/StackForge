@@ -86,14 +86,14 @@ setup_env() {
     echo ""
   done < <(grep -v '^#' .env.example | grep 'REPLACE_WITH_')
 
-  # Set SEARXNG_SECRET
+  # Set SEARXNG_SECRET_KEY
   searxng_secret=$(openssl rand -hex 32)
-  if grep -q "^# SEARXNG_SECRET" .env; then
-    sed -i "s/^# SEARXNG_SECRET=.*/SEARXNG_SECRET=${searxng_secret}/" .env
-  elif ! grep -q "^SEARXNG_SECRET=" .env; then
-    echo "SEARXNG_SECRET=${searxng_secret}" >> .env
+  if grep -q "^# SEARXNG_SECRET_KEY" .env; then
+    sed -i "s/^# SEARXNG_SECRET_KEY=.*/SEARXNG_SECRET_KEY=${searxng_secret}/" .env
+  elif ! grep -q "^SEARXNG_SECRET_KEY=" .env; then
+    echo "SEARXNG_SECRET_KEY=${searxng_secret}" >> .env
   fi
-  echo -e "${OK} SEARXNG_SECRET generated"
+  echo -e "${OK} SEARXNG_SECRET_KEY generated"
   echo ""
   echo -e "${BOLD}All secrets configured.${NC}"
 }
