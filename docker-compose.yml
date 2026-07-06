@@ -44,6 +44,7 @@ services:
       - ./searxng:/etc/searxng:ro
     environment:
       - SEARXNG_BASE_URL=http://${SERVER_IP:-localhost}:${SVC_SEARXNG_PORT:-8080}/
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET_KEY:-}
     cap_drop: [ALL]
     cap_add: [CHOWN, SETGID, SETUID]
     logging: *default-log
@@ -322,9 +323,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-volumes:
-  qdrant-data:
-  honcho-pgdata:
-  honcho-redis-data:
-  couchdb-data:
-  ollama-data:
