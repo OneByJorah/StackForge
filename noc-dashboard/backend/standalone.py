@@ -6,6 +6,7 @@ for services so health checks work even without Docker network.
 import asyncio
 import json
 import os
+import uuid
 import subprocess
 import time
 from collections import deque
@@ -13,7 +14,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -759,6 +760,49 @@ async def api_check(svc_id: str):
     state["history"][svc_id].append({"time": time.time(), "up": res["up"], "latency_ms": res.get("latency_ms")})
     state["prev_up"][svc_id] = res["up"]
     return JSONResponse({"id": svc_id, "result": res})
+
+
+@app.post("/api/agents/onboard")
+async def api_agents_onboard(request: Request):
+    """Auto-onboard a Hermes agent: provision Honcho workspace+peer (memory DB)
+    + API key (passcode); return connection config for the agent to self-configure.
+    Backend reaches Honcho on localhost; agent receives TAILSCALE_IP endpoints."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    agent_id = body.get("agent_id") or ("agent-" + uuid.uuid4().hex[:8])
+    name = body.get("name") or agent_id
+    honcho = os.getenv("HONCHO_URL", "http://localhost:8000")
+    ip = os.getenv("TAILSCALE_IP", "YOUR_SERVER_IP")
+    ws_id = peer_id = key = None
+    async with httpx.AsyncClient() as c:
+        try:
+            w = (await c.post(f"{honcho}/v3/workspaces", json={"name": name, "embedding_provider": "openai"})).json()
+            ws_id = w.get("id")
+        except Exception as e:
+            return JSONResponse({"error": "honcho workspace create failed", "detail": str(e)}, status_code=502)
+        try:
+            p = (await c.post(f"{honcho}/v3/workspaces/{ws_id}/peers", json={"name": name})).json()
+            peer_id = p.get("id")
+        except Exception:
+            peer_id = None
+        try:
+            # Honcho /v3/keys feature is disabled; mint a local passcode the agent
+            # can use to identify/authenticate itself on future calls.
+            key = uuid.uuid4().hex + uuid.uuid4().hex
+        except Exception:
+            key = None
+    return JSONResponse({
+        "agent_id": agent_id,
+        "workspace_id": ws_id,
+        "peer_id": peer_id,
+        "passcode": key,
+        "memory_api": f"http://{ip}:8000",
+        "notes_api": f"http://{ip}:5984",
+        "ollama": f"http://{ip}:11434",
+        "status": "onboarded",
+    })
 
 
 # Serve static frontend from local directory (runtime placeholder fill)
