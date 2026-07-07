@@ -793,6 +793,16 @@ async def api_agents_onboard(request: Request):
             key = uuid.uuid4().hex + uuid.uuid4().hex
         except Exception:
             key = None
+    setup_bash = (
+        f"# StackDeploy agent onboarding — run to self-configure (nothing manual)\n"
+        f"hermes config set model.base_url http://{ip}:11434\n"
+        f"hermes config set model.provider custom:ollama\n"
+        f"hermes config set memory.backend honcho\n"
+        f"hermes config set memory.honcho_url http://{ip}:8000\n"
+        f"hermes config set memory.workspace_id {ws_id}\n"
+        f"hermes config set memory.passcode {key}\n"
+        f"hermes config set notes.couchdb_url http://{ip}:5984\n"
+    )
     return JSONResponse({
         "agent_id": agent_id,
         "workspace_id": ws_id,
@@ -801,6 +811,7 @@ async def api_agents_onboard(request: Request):
         "memory_api": f"http://{ip}:8000",
         "notes_api": f"http://{ip}:5984",
         "ollama": f"http://{ip}:11434",
+        "setup": {"bash": setup_bash},
         "status": "onboarded",
     })
 

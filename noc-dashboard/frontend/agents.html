@@ -417,6 +417,17 @@
   <h1>Agent Hub <small>// self-hosted service registry</small></h1>
   <div class="subtitle">YOUR_SERVER_HOST (YOUR_SERVER_IP) · YOUR_TAILNET_NAME tailnet · 7 services exposed</div>
 
+  <!-- ═══ AGENT AUTO-ONBOARD ═══ -->
+  <div id="onboard" style="border:1px solid var(--amber); background:rgba(255,179,0,0.05); padding:16px; margin:18px 0;">
+    <div style="letter-spacing:2px; color:var(--amber); font-size:12px;">AUTOMATED AGENT ONBOARDING</div>
+    <div id="onboardStatus" style="font-size:11px; color:var(--muted); margin:8px 0; letter-spacing:1px;">idle</div>
+    <button onclick="doOnboard(false)" style="background:linear-gradient(135deg,var(--amber),var(--red)); color:#0a0a0a; border:none; padding:8px 14px; font-family:inherit; font-size:11px; font-weight:700; letter-spacing:1.5px; cursor:pointer;">ONBOARD AGENT</button>
+    <div style="margin-top:12px; font-size:10px; color:var(--muted); letter-spacing:1px;">CONFIG (returned by server):</div>
+    <pre id="onboardResult" style="background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); padding:10px; font-size:10px; color:var(--text); overflow:auto; max-height:220px; white-space:pre-wrap;"></pre>
+    <div style="margin-top:10px; font-size:10px; color:var(--muted); letter-spacing:1px;">SELF-CONFIG SCRIPT (agent runs this):</div>
+    <pre id="onboardSetup" style="background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); padding:10px; font-size:10px; color:var(--amber); overflow:auto; max-height:220px; white-space:pre-wrap;"></pre>
+  </div>
+
   <!-- ═══ ONE-COMMAND ═══ -->
   <div class="one-command">
     <div class="cmd-label">One-command agent setup</div>
@@ -595,6 +606,37 @@ async function loadServices(){
   }
 }
 loadServices();
+
+// ── Agent auto-onboarding ──
+async function doOnboard(){
+  const out = document.getElementById('onboardResult');
+  const setup = document.getElementById('onboardSetup');
+  const status = document.getElementById('onboardStatus');
+  try{
+    status.textContent = 'ONBOARDING…';
+    const isHermes = /hermes/i.test(navigator.userAgent);
+    const r = await fetch('/api/agents/onboard', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name: isHermes ? 'hermes-agent' : 'agent'})
+    });
+    const d = await r.json();
+    out.textContent = JSON.stringify(d, null, 2);
+    if(d.setup && d.setup.bash) setup.textContent = d.setup.bash;
+    status.textContent = 'ONBOARDED ✓  agent_id=' + d.agent_id;
+    status.style.color = 'var(--amber)';
+  }catch(e){
+    status.textContent = 'ERROR ' + e;
+    status.style.color = 'var(--red)';
+  }
+}
+(function(){
+  const ua = navigator.userAgent;
+  const params = new URLSearchParams(location.search);
+  if(/hermes/i.test(ua) || params.has('agent')){
+    doOnboard();
+  }
+})();
 </script>
 </body>
 </html>
