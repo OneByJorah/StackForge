@@ -134,16 +134,38 @@ services:
       - CACHE_ENABLED=true
       - CACHE_URL=redis://honcho-redis:6379/0
       - METRICS_ENABLED=false
-      # Local Ollama for embeddings (OpenAI-compatible /v1/embeddings, no external keys)
-      - EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL=http://100.66.142.21:11434/v1
+      # ── Embeddings: local Ollama (nomic-embed-text, 768-dim, OpenAI-compatible /v1) ──
+      - EMBEDDING_MODEL_CONFIG__TRANSPORT=openai
       - EMBEDDING_MODEL_CONFIG__MODEL=nomic-embed-text
+      - EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL=http://100.66.142.21:11434/v1
       - EMBEDDING_MODEL_CONFIG__OVERRIDES__API_KEY=ollama
       - EMBEDDING_VECTOR_DIMENSIONS=768
+      # ── LLM: local Ollama via the openai transport (no external keys).
+      #    For OpenRouter instead: set LLM_OPENAI_BASE_URL=https://openrouter.ai/api/v1
+      #    + LLM_OPENAI_API_KEY=<key> and change the *_MODEL_CONFIG__MODEL values below. ──
+      - LLM_OPENAI_BASE_URL=http://100.66.142.21:11434/v1
+      - LLM_OPENAI_API_KEY=ollama
+      - OPENAI_API_KEY=ollama
       - LLM_VLLM_API_KEY=ollama
       - LLM_VLLM_BASE_URL=http://100.66.142.21:11434/v1
       - LLM_VLLM_MODEL=llama3.2:1b
-      - LLM_OPENAI_API_KEY=ollama
-      - OPENAI_API_KEY=ollama
+      # Local model for every LLM role (deriver / dialectic / summary / dream)
+      - DERIVER_MODEL_CONFIG__TRANSPORT=openai
+      - DERIVER_MODEL_CONFIG__MODEL=llama3.2:1b
+      - SUMMARY_MODEL_CONFIG__TRANSPORT=openai
+      - SUMMARY_MODEL_CONFIG__MODEL=llama3.2:1b
+      - DREAM_MODEL_CONFIG__TRANSPORT=openai
+      - DREAM_MODEL_CONFIG__MODEL=llama3.2:1b
+      - DIALECTIC_LEVELS__minimal__MODEL_CONFIG__TRANSPORT=openai
+      - DIALECTIC_LEVELS__minimal__MODEL_CONFIG__MODEL=llama3.2:1b
+      - DIALECTIC_LEVELS__low__MODEL_CONFIG__TRANSPORT=openai
+      - DIALECTIC_LEVELS__low__MODEL_CONFIG__MODEL=llama3.2:1b
+      - DIALECTIC_LEVELS__medium__MODEL_CONFIG__TRANSPORT=openai
+      - DIALECTIC_LEVELS__medium__MODEL_CONFIG__MODEL=llama3.2:1b
+      - DIALECTIC_LEVELS__high__MODEL_CONFIG__TRANSPORT=openai
+      - DIALECTIC_LEVELS__high__MODEL_CONFIG__MODEL=llama3.2:1b
+      - DIALECTIC_LEVELS__max__MODEL_CONFIG__TRANSPORT=openai
+      - DIALECTIC_LEVELS__max__MODEL_CONFIG__MODEL=llama3.2:1b
     volumes:
       - ./honcho/config.toml:/app/config.toml:ro
     logging: *default-log
@@ -233,7 +255,7 @@ services:
       - "21027:21027/udp"                         # LAN discovery
     volumes:
       - ./syncthing/config:/var/syncthing/config
-      - ./obsidian/vault:/var/syncthing/vault:ro
+      - ./obsidian/vault:/var/syncthing/vault:rw
     environment:
       - STGUIADDRESS=0.0.0.0:${SVC_SYNCTHING_UI_PORT:-8384}
       - STNODEFAULTUSER=true
