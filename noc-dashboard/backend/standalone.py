@@ -15,6 +15,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -797,12 +798,17 @@ async def api_agents_onboard(request: Request):
         f"# StackDeploy agent onboarding — run to self-configure (nothing manual)\n"
         f"hermes config set model.base_url http://{ip}:11434\n"
         f"hermes config set model.provider custom:ollama\n"
-        f"hermes config set memory.backend honcho\n"
-        f"hermes config set memory.honcho_url http://{ip}:8000\n"
-        f"hermes config set memory.workspace_id {ws_id}\n"
-        f"hermes config set memory.passcode {key}\n"
-        f"hermes config set notes.couchdb_url http://{ip}:5984\n"
+        f"hermes config set memory.provider custom\n"
+        f"hermes config set memory.base_url http://{ip}:8000\n"
+        f"# Notes to this server CouchDB (LiveSync): agent writes via CouchDB REST API at http://{ip}:5984\n"
     )
+    AGENTS_REGISTRY[agent_id] = {
+        "agent_id": agent_id, "name": name, "workspace_id": ws_id,
+        "peer_id": peer_id, "passcode": key, "memory_api": f"http://{ip}:8000",
+        "notes_api": f"http://{ip}:5984", "ollama": f"http://{ip}:11434",
+        "created_at": time.time(),
+    }
+    _save_agents(AGENTS_REGISTRY)
     return JSONResponse({
         "agent_id": agent_id,
         "workspace_id": ws_id,
@@ -814,6 +820,38 @@ async def api_agents_onboard(request: Request):
         "setup": {"bash": setup_bash},
         "status": "onboarded",
     })
+
+
+# Agent onboarding registry (persisted across restarts)
+AGENTS_FILE = "/tmp/noc-agents.json"
+def _load_agents():
+    try:
+        import json
+        with open(AGENTS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+def _save_agents(d):
+    try:
+        import json
+        with open(AGENTS_FILE, "w") as f:
+            json.dump(d, f, indent=2)
+    except Exception:
+        pass
+AGENTS_REGISTRY = _load_agents()
+
+@app.get("/api/agents")
+async def api_agents_list():
+    out = []
+    for a in AGENTS_REGISTRY.values():
+        c = a.get("passcode") or ""
+        item = {k: v for k, v in a.items() if k != "passcode"}
+        item["passcode_masked"] = ("****" + c[-4:]) if c else ""
+        out.append(item)
+    return JSONResponse({"agents": out, "count": len(out)})
+
+# CORS so the Mission Control dashboard (:51763) can fetch this API
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
 # Serve static frontend from local directory (runtime placeholder fill)
