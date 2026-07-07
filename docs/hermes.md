@@ -1,6 +1,6 @@
-# StackDeploy + Hermes Agent
+# StackForge + Hermes Agent
 
-This doc describes how the Hermes Agent uses the local StackDeploy services.
+This doc describes how the Hermes Agent uses the local StackForge services.
 
 ## Cluster Health
 ```bash
@@ -26,12 +26,12 @@ curl -s -o /dev/null -w 'qdrant=%{http_code}\n' http://localhost:6333/
 
 ## BrowserSearch CLI
 ```bash
-cd /path/to/StackDeploy/browser-search
+cd /path/to/StackForge/browser-search
 node scripts/cloak/cloak-fetch.mjs "https://example.com" --format markdown
 ```
 
 ## Smoke test
 ```bash
-cd /path/to/StackDeploy
+cd /path/to/StackForge
 bash tests/smoke.sh
 ```

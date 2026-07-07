@@ -52,8 +52,8 @@ tar czf honcho-backup.tgz /path/to/your/honcho/data
 
 ```bash
 docker compose down
-tar czf stackdeploy-volumes-backup.tgz \
-  /var/lib/docker/volumes/stackdeploy-*/_data
+tar czf stackforge-volumes-backup.tgz \
+  /var/lib/docker/volumes/stackforge-*/_data
 docker compose up -d
 ```
 

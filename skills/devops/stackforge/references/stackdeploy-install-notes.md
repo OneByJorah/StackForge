@@ -1,4 +1,4 @@
-# StackDeploy Install Notes (for Hermes Integration)
+# StackForge Install Notes (for Hermes Integration)
 
 ## Verified endpoints (localhost)
 - SearXNG: http://localhost:8080
@@ -7,8 +7,8 @@
 - Qdrant: http://localhost:6333
 
 ## Default paths
-- Repo: ~/StackDeploy
-- Vault: ~/StackDeploy/obsidian-vault (or as set by OBSIDIAN_VAULT_PATH)
+- Repo: ~/StackForge
+- Vault: ~/StackForge/obsidian-vault (or as set by OBSIDIAN_VAULT_PATH)
 
 ## Setup checklist
 1. Clone repo and set `.env`.

@@ -265,7 +265,7 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="J1-NOC StackDeploy Dashboard", lifespan=lifespan)
+app = FastAPI(title="J1-NOC StackForge Dashboard", lifespan=lifespan)
 
 
 @app.get("/api/status")
@@ -599,7 +599,7 @@ SERVICE_REGISTRY = {
     },
     "noc_dashboard": {
         "name": "NOC Dashboard",
-        "description": "StackDeploy health monitor showing service uptime, Tailscale map, and DERP relays.",
+        "description": "StackForge health monitor showing service uptime, Tailscale map, and DERP relays.",
         "tailscale_url": f"http://{TAILSCALE_IP}:9500",
         "internal_url": "http://localhost:9500",
         "api_docs": "http://localhost:9500/api/status",

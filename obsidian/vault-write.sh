@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-VAULT="${OBSIDIAN_VAULT_PATH:-/path/to/StackDeploy/obsidian/vault}"
+VAULT="${OBSIDIAN_VAULT_PATH:-/path/to/StackForge/obsidian/vault}"
 TITLE="${1:-Untitled}"
 BODY="${2:-}"
 TAGS="${3:-agent}"

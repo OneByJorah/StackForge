@@ -1,7 +1,7 @@
 """
-J1-NOC Dashboard — StackDeploy monitoring backend.
+J1-NOC Dashboard — StackForge monitoring backend.
 
-Polls every service in StackDeploy over the internal Docker network using
+Polls every service in StackForge over the internal Docker network using
 the SAME health endpoints defined in docker-compose.yml / scripts/healthcheck.sh,
 plus optional Portainer container stats if PORTAINER_URL is set.
 
@@ -192,7 +192,7 @@ async def lifespan(app: FastAPI):
 
 TAILSCALE_IP = os.getenv("TAILSCALE_IP", "YOUR_SERVER_IP")
 
-app = FastAPI(title="J1-NOC StackDeploy Dashboard", lifespan=lifespan)
+app = FastAPI(title="J1-NOC StackForge Dashboard", lifespan=lifespan)
 
 # ── Self-hosted API registry ──────────────────────────────────────────────────
 # This is the catalog that other Hermes agents on Tailscale query to discover
@@ -278,7 +278,7 @@ SERVICE_REGISTRY = {
     },
     "noc_dashboard": {
         "name": "NOC Dashboard",
-        "description": "StackDeploy health monitor showing service uptime, Tailscale map, and DERP relays.",
+        "description": "StackForge health monitor showing service uptime, Tailscale map, and DERP relays.",
         "tailscale_url": f"http://{TAILSCALE_IP}:9500",
         "internal_url": "http://localhost:9500",
         "api_docs": "http://localhost:9500/api/status",

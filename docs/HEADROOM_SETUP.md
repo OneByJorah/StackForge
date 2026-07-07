@@ -1,6 +1,6 @@
 # Headroom / Aphrodite Setup
 
-Headroom is integrated into StackDeploy as an optional service under `vendor/headroom`, using the upstream `headroomlabs-ai/headroom` codebase. It exposes a local proxy on port `8787` plus Qdrant/Neo4j backends for vector + graph memory. Aphrodite-specific config is handled through Headroom’s proxy and `headroom.toml` conventions.
+Headroom is integrated into StackForge as an optional service under `vendor/headroom`, using the upstream `headroomlabs-ai/headroom` codebase. It exposes a local proxy on port `8787` plus Qdrant/Neo4j backends for vector + graph memory. Aphrodite-specific config is handled through Headroom’s proxy and `headroom.toml` conventions.
 
 ## Prerequisites
 

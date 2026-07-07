@@ -1,15 +1,15 @@
 ---
-name: stackdeploy
-description: Run StackDeploy and integrate its services (SearXNG, Camofox, Obsidian, Qdrant, CloakBrowser) with Hermes Agent.
+name: stackforge
+description: Run StackForge and integrate its services (SearXNG, Camofox, Obsidian, Qdrant, CloakBrowser) with Hermes Agent.
 version: "1.0.0"
 metadata:
   hermes:
-    tags: [stackdeploy, ops, docker, searxng, camofox, obsidian, qdrant, cloackbrowser]
+    tags: [stackforge, ops, docker, searxng, camofox, obsidian, qdrant, cloackbrowser]
 ---
 
-# StackDeploy Integration
+# StackForge Integration
 
-StackDeploy provides local AI-friendly infrastructure: SearXNG for search, Camofox for browser automation, Obsidian for notes, Qdrant for vector storage, and optional Honcho/llama.cpp. This skill helps you install, configure, and use StackDeploy with Hermes.
+StackForge provides local AI-friendly infrastructure: SearXNG for search, Camofox for browser automation, Obsidian for notes, Qdrant for vector storage, and optional Honcho/llama.cpp. This skill helps you install, configure, and use StackForge with Hermes.
 
 ## Prerequisites
 - Docker & Docker Compose
@@ -18,10 +18,10 @@ StackDeploy provides local AI-friendly infrastructure: SearXNG for search, Camof
 
 ## Quick Setup
 
-1. Clone the StackDeploy repository:
+1. Clone the StackForge repository:
    ```bash
-   git clone https://github.com/OneByJorah/StackDeploy.git
-   cd StackDeploy
+   git clone https://github.com/OneByJorah/StackForge.git
+   cd StackForge
    ```
 
 2. Configure environment:
@@ -51,13 +51,13 @@ StackDeploy provides local AI-friendly infrastructure: SearXNG for search, Camof
    ```
 
 ## Default Paths
-- Repo: `~/StackDeploy` (or wherever you cloned it)
-- Obsidian Vault: `~/StackDeploy/obsidian-vault` by default; configurable via `OBSIDIAN_VAULT_PATH` in `.env`.
+- Repo: `~/StackForge` (or wherever you cloned it)
+- Obsidian Vault: `~/StackForge/obsidian-vault` by default; configurable via `OBSIDIAN_VAULT_PATH` in `.env`.
 
 ## Verify
 ```bash
 # Check service health
-cd ~/StackDeploy
+cd ~/StackForge
 docker compose ps
 bash tests/smoke.sh
 
@@ -74,4 +74,4 @@ Once configured, use Hermes’s web search normally. The agent will route querie
 - If Camofox shows `browserConnected: false`, it will connect on first automation task.
 - Ensure `node_modules` exists in `browser-search` (run `npm install`).
 
-For more details, see the StackDeploy documentation: `docs/` in the repository.
+For more details, see the StackForge documentation: `docs/` in the repository.

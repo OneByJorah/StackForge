@@ -9,8 +9,8 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/OneByJorah/StackDeploy.git
-cd StackDeploy
+git clone https://github.com/OneByJorah/StackForge.git
+cd StackForge
 
 # 2. Environment
 cp .env.example .env

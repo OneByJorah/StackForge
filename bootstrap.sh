@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════
-# StackDeploy Bootstrap  —  Interactive First-Run Setup
+# StackForge Bootstrap  —  Interactive First-Run Setup
 # Usage:  bash bootstrap.sh
 #
 # Prompts for passwords/ips on first run, then deploys everything.
@@ -15,7 +15,7 @@ OK="${AMBER}✓${NC}"; INFO="${DIM}▸${NC}"; WARN="${AMBER}⚠${NC}"
 
 echo -e "${BOLD}"
 echo "═══════════════════════════════════════"
-echo "  StackDeploy — Self-hosted AI Brain"
+echo "  StackForge — Self-hosted AI Brain"
 echo "═══════════════════════════════════════"
 echo -e "${NC}"
 
@@ -155,7 +155,7 @@ $DC up -d --wait 2>&1 | sed 's/^/  /'
 
 echo ""
 echo -e "${BOLD}═══════════════════════════════════════════════════${NC}"
-echo -e "  ${OK} StackDeploy is live!"
+echo -e "  ${OK} StackForge is live!"
 echo -e "  ${DIM}═${NC}"
 echo -e "  Web viewer    ${BOLD}http://${SERVER_IP}:${SVC_OBSIDIAN_PORT:-8083}${NC}"
 echo -e "  LiveSync      ${BOLD}http://${SERVER_IP}:${SVC_COUCHDB_PORT:-5984}${NC}"

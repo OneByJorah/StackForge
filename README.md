@@ -8,7 +8,7 @@
 <br>
 
 <div align="center">
-  <h1>📦 StackDeploy</h1>
+  <h1>📦 StackForge</h1>
   <p><strong>Production-Ready Docker Compose Stack for Hermes Agents</strong></p>
   <p>One IP, one stack — CPU-only, privacy-focused, self-hosted</p>
   <p>
@@ -64,8 +64,8 @@
 ### Setup
 
 ```bash
-git clone https://github.com/OneByJorah/StackDeploy.git
-cd StackDeploy
+git clone https://github.com/OneByJorah/StackForge.git
+cd StackForge
 
 # 1. Configure environment
 cp .env.example .env
@@ -184,7 +184,7 @@ Honcho needs an OpenAI-compatible LLM provider for its embedding/LLM features. C
 
 ## 🌐 Hermes Agent Integration
 
-The entire stack is designed to be consumed by Hermes agents. Configure your agent's provider settings to point at the Tailscale IP where StackDeploy runs.
+The entire stack is designed to be consumed by Hermes agents. Configure your agent's provider settings to point at the Tailscale IP where StackForge runs.
 
 ### Agent configuration
 
@@ -233,7 +233,7 @@ The entire stack is designed to be consumed by Hermes agents. Configure your age
 ## Project Structure
 
 ```
-StackDeploy/
+StackForge/
 ├── docker-compose.yml         # Main compose file — all services
 ├── .env.example               # Environment variable template
 ├── .env.honcho.example        # Honcho LLM provider config template

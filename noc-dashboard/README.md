@@ -1,15 +1,15 @@
 # J1-NOC Dashboard
 
-Read-only monitoring dashboard for StackDeploy. Polls every service's real health
+Read-only monitoring dashboard for StackForge. Polls every service's real health
 endpoint (the same ones in `docker-compose.yml` / `scripts/healthcheck.sh`) over the
 internal Docker network, plus optional Portainer container stats.
 
 **This does not replace or proxy anything.** Every service still exposes its own
 port/API exactly as before — this just gives you one screen to see all of them at once.
 
-## Install into StackDeploy
+## Install into StackForge
 
-1. Drop this whole `noc-dashboard/` folder into the root of your `StackDeploy` repo,
+1. Drop this whole `noc-dashboard/` folder into the root of your `StackForge` repo,
    alongside `docker-compose.yml`.
 2. Copy `docker-compose.dashboard.yml` to the repo root too (next to
    `docker-compose.honcho.yml` / `docker-compose.headroom.yml`).

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────
-# StackDeploy — Self-hosted AI Brain for Hermes Agent
+# StackForge — Self-hosted AI Brain for Hermes Agent
 # One stack. One IP.  →  `docker compose up -d`
 # ─────────────────────────────────────────────────────────────
 # Requirements: git, docker, docker compose, tailscale (recommended)

@@ -27,7 +27,7 @@ Honcho provides long-term memory/workspace context for Hermes Agent.
    git submodule update --init vendor/honcho
    ```
 
-4. Start Honcho alongside StackDeploy:
+4. Start Honcho alongside StackForge:
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.honcho.yml up -d
    ```
