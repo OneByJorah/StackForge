@@ -11,16 +11,16 @@
   :root{
     --bg:#05080f;
     --panel:rgba(5,8,15,0.75);
-    --panel-border:rgba(0,229,255,0.1);
-    --amber:#00e5ff;
+    --panel-border:rgba(255,179,0,0.1);
+    --amber:#ffb300;
     --amber-dim:#006080;
     --amber-dark:#003052;
     --red:#ff0080;
     --text:#e8f4ff;
     --muted:#6b8fa3;
     --glass-bg:rgba(5,8,15,0.75);
-    --glass-border:rgba(0,229,255,0.1);
-    --gradient-brand:linear-gradient(135deg,#00e5ff,#ff0080);
+    --glass-border:rgba(255,179,0,0.1);
+    --gradient-brand:linear-gradient(135deg,#ffb300,#ff0080);
   }
   *{box-sizing:border-box;}
   html,body{
@@ -33,14 +33,14 @@
     position:fixed; inset:0;
     background:
       linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
-      linear-gradient(90deg, rgba(255,0,128,0.04), rgba(0,229,255,0.02), rgba(255,0,128,0.04));
+      linear-gradient(90deg, rgba(255,0,128,0.04), rgba(255,179,0,0.02), rgba(255,0,128,0.04));
     background-size:100% 2px, 3px 100%;
     pointer-events:none; z-index:100;
   }
   body::after{
     content:"";
     position:fixed; inset:0;
-    background:radial-gradient(circle at 30% 40%,rgba(0,229,255,0.03),transparent 60%),radial-gradient(circle at 70% 60%,rgba(255,0,128,0.03),transparent 60%);
+    background:radial-gradient(circle at 30% 40%,rgba(255,179,0,0.03),transparent 60%),radial-gradient(circle at 70% 60%,rgba(255,0,128,0.03),transparent 60%);
     pointer-events:none; z-index:0;
     animation:bgDrift 12s ease-in-out infinite alternate;
   }
@@ -61,9 +61,9 @@
   .brand .sub{color:var(--muted); font-size:10px; letter-spacing:1.5px; text-transform:uppercase;}
   .nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .nav a{color:var(--amber); text-decoration:none; font-size:10px; letter-spacing:1.5px; border:1px solid var(--amber-dark); padding:4px 8px; transition:all .2s;}
-  .nav a:hover{background:rgba(0,229,255,0.08); border-color:var(--amber-dim); box-shadow:0 0 12px rgba(0,229,255,0.15);}
+  .nav a:hover{background:rgba(255,179,0,0.08); border-color:var(--amber-dim); box-shadow:0 0 12px rgba(255,179,0,0.15);}
   .summary{display:flex;gap:14px;align-items:center;font-size:10px;letter-spacing:1.5px;flex-wrap:wrap;}
-  .count{color:var(--amber); font-size:18px; font-weight:700; text-shadow:0 0 18px rgba(0,229,255,0.7);}
+  .count{color:var(--amber); font-size:18px; font-weight:700; text-shadow:0 0 18px rgba(255,179,0,0.7);}
   .muted{color:var(--muted);}
   .timestamp{color:var(--amber-dim); font-size:10px; letter-spacing:1px;}
 
@@ -76,7 +76,7 @@
     cursor:pointer; transition:all .2s; text-transform:uppercase;
   }
   .view-btn:hover{border-color:var(--amber-dim);color:var(--text);}
-  .view-btn.active{border-color:var(--amber);color:var(--amber);box-shadow:0 0 8px rgba(0,229,255,0.15);}
+  .view-btn.active{border-color:var(--amber);color:var(--amber);box-shadow:0 0 8px rgba(255,179,0,0.15);}
 
   /* Main view areas */
   #geoView{position:fixed;top:44px;left:0;right:0;bottom:28px;z-index:1;display:none;}
@@ -86,8 +86,8 @@
 
   canvas#net{display:block;width:100%;height:100%;background:
     radial-gradient(ellipse at top, #0a1218 0%, var(--bg) 60%),
-    linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+    linear-gradient(rgba(255,179,0,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,179,0,0.04) 1px, transparent 1px);
     background-size:100% 100%, 28px 28px, 28px 28px;
   }
 
@@ -110,7 +110,7 @@
     text-transform:uppercase;
   }
   .filter-chip:hover{border-color:var(--amber-dim);color:var(--text);}
-  .filter-chip.active{border-color:var(--amber);color:var(--amber);box-shadow:0 0 8px rgba(0,229,255,0.15);}
+  .filter-chip.active{border-color:var(--amber);color:var(--amber);box-shadow:0 0 8px rgba(255,179,0,0.15);}
   .filter-chip.count-badge{position:relative;}
   .filter-chip .badge{
     position:absolute;top:-6px;right:-6px;
@@ -146,11 +146,11 @@
     position:fixed; z-index:100;
     background:var(--glass-bg); border:1px solid var(--glass-border);
     padding:12px 14px; font-size:10px; min-width:220px;
-    box-shadow:0 0 30px rgba(0,229,255,0.12); backdrop-filter:blur(12px);
+    box-shadow:0 0 30px rgba(255,179,0,0.12); backdrop-filter:blur(12px);
     pointer-events:none; display:none;
   }
   .popup.show{display:block;}
-  .popup-title{color:var(--amber); font-size:12px; font-weight:700; letter-spacing:1px; margin-bottom:6px; text-shadow:0 0 8px rgba(0,229,255,0.4);}
+  .popup-title{color:var(--amber); font-size:12px; font-weight:700; letter-spacing:1px; margin-bottom:6px; text-shadow:0 0 8px rgba(255,179,0,0.4);}
   .popup-row{color:var(--muted); letter-spacing:.5px; margin-top:3px;}
   .popup-row b{color:var(--text); font-weight:600;}
   .popup-row .online{color:var(--amber);}
@@ -193,7 +193,7 @@
     font-family:'JetBrains Mono', monospace !important;
     font-size:14px !important;
   }
-  .leaflet-control-zoom a:hover{background:rgba(0,229,255,0.1) !important;color:var(--amber) !important;}
+  .leaflet-control-zoom a:hover{background:rgba(255,179,0,0.1) !important;color:var(--amber) !important;}
   .leaflet-control-attribution{
     background:rgba(5,8,15,0.85) !important;
     color:var(--muted) !important;
@@ -208,7 +208,7 @@
     color:var(--text) !important;
     font-family:'JetBrains Mono', monospace !important;
     font-size:10px !important;
-    box-shadow:0 0 30px rgba(0,229,255,0.12) !important;
+    box-shadow:0 0 30px rgba(255,179,0,0.12) !important;
     backdrop-filter:blur(12px);
     border-radius:0 !important;
   }
@@ -224,7 +224,7 @@
     font-family:'JetBrains Mono',monospace !important;
     font-size:9px !important;
     border-radius:0 !important;
-    box-shadow:0 0 20px rgba(0,229,255,0.1) !important;
+    box-shadow:0 0 20px rgba(255,179,0,0.1) !important;
   }
   .geo-tooltip .leaflet-tooltip-top:before{border-top-color:var(--glass-border) !important;}
 </style>
@@ -459,12 +459,12 @@ function makeGeoIcon(node){
 
 function makeHubGeoIcon(){
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
-    <circle cx="22" cy="22" r="18" fill="rgba(0,229,255,0.06)" stroke="var(--amber-dim)" stroke-width="1" stroke-dasharray="3 3">
+    <circle cx="22" cy="22" r="18" fill="rgba(255,179,0,0.06)" stroke="var(--amber-dim)" stroke-width="1" stroke-dasharray="3 3">
       <animateTransform attributeName="transform" type="rotate" from="0 22 22" to="360 22 22" dur="25s" repeatCount="indefinite"/>
     </circle>
-    <circle cx="22" cy="22" r="8" fill="#00e5ff" opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="22" cy="22" r="8" fill="#ffb300" opacity="0.85" stroke="#fff" stroke-width="1.5"/>
     <circle cx="22" cy="22" r="3" fill="#05080f"/>
-    <circle cx="22" cy="22" r="16" fill="none" stroke="#00e5ff" stroke-width="0.8" opacity="0.4">
+    <circle cx="22" cy="22" r="16" fill="none" stroke="#ffb300" stroke-width="0.8" opacity="0.4">
       <animate attributeName="r" from="10" to="22" dur="2.5s" repeatCount="indefinite"/>
       <animate attributeName="opacity" from="0.6" to="0" dur="2.5s" repeatCount="indefinite"/>
     </circle>
@@ -526,7 +526,7 @@ function renderGeo(){
 
     if(arcTo && node.online){
       const arc = L.polyline([[node.lat, node.lon], arcTo], {
-        color: selectedNode && selectedNode !== node.ip ? (selectedNode === node.ip ? '#00e5ff' : 'rgba(0,229,255,0.08)') : color,
+        color: selectedNode && selectedNode !== node.ip ? (selectedNode === node.ip ? '#ffb300' : 'rgba(255,179,0,0.08)') : color,
         weight: selectedNode === node.ip ? 2.5 : (selectedNode ? 0.5 : 1.2),
         opacity: selectedNode && selectedNode !== node.ip ? (node._relayTo === selectedNode ? 0.4 : 0.08) : opacity,
         dashArray: selectedNode === node.ip ? '4 4' : '6 8',
@@ -852,7 +852,7 @@ function drawFrame(){
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
-    ctx.strokeStyle = `rgba(0,229,255,${edgeAlpha * (0.6 + 0.4*Math.sin(t*2.0 + (e.to._node?.wanderPhase||0)))})`;
+    ctx.strokeStyle = `rgba(255,179,0,${edgeAlpha * (0.6 + 0.4*Math.sin(t*2.0 + (e.to._node?.wanderPhase||0)))})`;
     ctx.lineWidth = isSel ? 2.5 : 1.2;
     ctx.setLineDash([6,8]);
     ctx.lineDashOffset = -t*25;
@@ -865,8 +865,8 @@ function drawFrame(){
       const px = a.x + (b.x-a.x)*frac, py = a.y + (b.y-a.y)*frac;
       ctx.beginPath();
       ctx.arc(px, py, 2.5, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(0,229,255,${e.alpha})`;
-      ctx.shadowColor = '#00e5ff';
+      ctx.fillStyle = `rgba(255,179,0,${e.alpha})`;
+      ctx.shadowColor = '#ffb300';
       ctx.shadowBlur = 10;
       ctx.fill();
       ctx.shadowBlur = 0;
@@ -879,8 +879,8 @@ function drawFrame(){
     const glow = 6 + 4*Math.sin(t*0.8 + p.phase);
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-    ctx.fillStyle = `rgba(0,229,255,${0.4 + 0.3*Math.sin(t*0.5+p.phase)})`;
-    ctx.shadowColor = '#00e5ff';
+    ctx.fillStyle = `rgba(255,179,0,${0.4 + 0.3*Math.sin(t*0.5+p.phase)})`;
+    ctx.shadowColor = '#ffb300';
     ctx.shadowBlur = glow;
     ctx.fill();
     ctx.shadowBlur = 0;
@@ -952,9 +952,9 @@ function drawFrame(){
     if(n._collectFlash && n._collectFlash > 0.1){
       ctx.beginPath();
       ctx.arc(n.x, n.y, 10 + n._collectFlash*8, 0, Math.PI*2);
-      ctx.strokeStyle = `rgba(0,229,255,${n._collectFlash*0.5})`;
+      ctx.strokeStyle = `rgba(255,179,0,${n._collectFlash*0.5})`;
       ctx.lineWidth = 2;
-      ctx.shadowColor = '#00e5ff';
+      ctx.shadowColor = '#ffb300';
       ctx.shadowBlur = 16;
       ctx.stroke();
       ctx.shadowBlur = 0;
@@ -976,8 +976,8 @@ function drawFrame(){
   ctx.globalAlpha = scoreAlpha;
   ctx.font = `bold ${12*dpr}px 'JetBrains Mono', monospace`;
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#00e5ff';
-  ctx.shadowColor = '#00e5ff';
+  ctx.fillStyle = '#ffb300';
+  ctx.shadowColor = '#ffb300';
   ctx.shadowBlur = 8;
   ctx.fillText(`◈ DATA: ${gameScore}`, W - 20*dpr, 30*dpr);
   ctx.shadowBlur = 0;
@@ -990,9 +990,9 @@ function drawFrame(){
   // Hub label
   ctx.textAlign = 'center';
   ctx.font = `bold ${11*dpr}px 'JetBrains Mono', monospace`;
-  ctx.fillStyle = '#00e5ff';
+  ctx.fillStyle = '#ffb300';
   ctx.globalAlpha = 0.85;
-  ctx.shadowColor = '#00e5ff';
+  ctx.shadowColor = '#ffb300';
   ctx.shadowBlur = 10;
   ctx.fillText('◆ MESH PROTOCOL', cx, cy - 18);
   ctx.font = `${9*dpr}px 'JetBrains Mono', monospace`;

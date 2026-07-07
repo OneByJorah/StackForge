@@ -11,16 +11,16 @@
     --bg: #05080f;
     --panel: rgba(10,18,28,0.85);
     --panel-border: #1f2d3d;
-    --amber: #00e5ff;
+    --amber: #ffb300;
     --amber-dim: #006080;
     --amber-dark: #003052;
     --red: #ff0080;
     --text: #e8f4ff;
     --muted: #6b8fa3;
-    --grid-line: rgba(0,229,255,0.04);
+    --grid-line: rgba(255,179,0,0.04);
     --glass-bg: rgba(5,8,15,0.75);
-    --glass-border: rgba(0,229,255,0.1);
-    --gradient-brand: linear-gradient(135deg,#00e5ff,#ff0080);
+    --glass-border: rgba(255,179,0,0.1);
+    --gradient-brand: linear-gradient(135deg,#ffb300,#ff0080);
   }
 
   *{box-sizing:border-box;}
@@ -72,7 +72,7 @@
     justify-content:space-between;
     flex-wrap:wrap;
     gap:12px;
-    box-shadow: 0 4px 32px rgba(0,229,255,0.08);
+    box-shadow: 0 4px 32px rgba(255,179,0,0.08);
   }
 
   .brand{display:flex; align-items:baseline; gap:12px;}
@@ -85,7 +85,7 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     text-shadow: none;
-    filter: drop-shadow(0 0 12px rgba(0,229,255,0.4));
+    filter: drop-shadow(0 0 12px rgba(255,179,0,0.4));
   }
   .brand .sub{
     color:var(--muted);
@@ -108,7 +108,7 @@
   }
   .nav-links a:hover, .nav-links a.active{
     color:var(--amber);
-    text-shadow:0 0 8px rgba(0,229,255,0.4);
+    text-shadow:0 0 8px rgba(255,179,0,0.4);
     border-bottom-color:var(--amber-dim);
   }
   .nav-links a.active{color:var(--amber);}
@@ -131,7 +131,7 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    filter: drop-shadow(0 0 12px rgba(0,229,255,0.4));
+    filter: drop-shadow(0 0 12px rgba(255,179,0,0.4));
   }
   h1 small{
     color:var(--muted);
@@ -241,7 +241,7 @@
   }
   .svc-card:hover{
     border-color:var(--amber);
-    box-shadow: 0 0 16px rgba(0,229,255,0.06);
+    box-shadow: 0 0 16px rgba(255,179,0,0.06);
   }
   .svc-card .svc-name{
     color:var(--amber);
@@ -314,7 +314,7 @@
     border-bottom:1px solid rgba(31,45,61,0.5);
     vertical-align:top;
   }
-  .env-table tr:hover td{background:rgba(0,229,255,0.03);}
+  .env-table tr:hover td{background:rgba(255,179,0,0.03);}
   .env-table .var{color:var(--amber);}
   .env-table .val{color:var(--text);word-break:break-all;}
   .env-table .note{color:var(--muted);font-size:10px;}

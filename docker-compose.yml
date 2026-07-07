@@ -134,6 +134,16 @@ services:
       - CACHE_ENABLED=true
       - CACHE_URL=redis://honcho-redis:6379/0
       - METRICS_ENABLED=false
+      # Local Ollama for embeddings (OpenAI-compatible /v1/embeddings, no external keys)
+      - EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL=http://100.66.142.21:11434/v1
+      - EMBEDDING_MODEL_CONFIG__MODEL=nomic-embed-text
+      - EMBEDDING_MODEL_CONFIG__OVERRIDES__API_KEY=ollama
+      - EMBEDDING_VECTOR_DIMENSIONS=768
+      - LLM_VLLM_API_KEY=ollama
+      - LLM_VLLM_BASE_URL=http://100.66.142.21:11434/v1
+      - LLM_VLLM_MODEL=llama3.2:1b
+      - LLM_OPENAI_API_KEY=ollama
+      - OPENAI_API_KEY=ollama
     volumes:
       - ./honcho/config.toml:/app/config.toml:ro
     logging: *default-log

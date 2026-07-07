@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -70,19 +70,19 @@ DEFAULT_SERVICES = [
     {"id": "searxng", "name": "SearXNG", "host": "localhost", "port": 8080, "public_port": 8080,
      "kind": "http", "path": "/search?q=healthcheck&format=json", "group": "Search & Browser"},
     {"id": "camofox", "name": "Camofox", "host": "localhost", "port": 9377, "public_port": 9377,
-     "kind": "http", "path": "/health", "group": "Search & Browser"},
+     "kind": "http", "path": "/health", "group": "Search & Browser", "optional": True},
     {"id": "cloakbrowser", "name": "CloakBrowser", "host": "localhost", "port": 9222, "public_port": 9222,
-     "kind": "http", "path": "/json/version", "group": "Search & Browser"},
+     "kind": "http", "path": "/json/version", "group": "Search & Browser", "optional": True},
     {"id": "obsidian", "name": "Obsidian Remote", "host": "localhost", "port": 8080, "public_port": 8083,
      "kind": "http", "path": "/", "group": "Notes & Docs"},
     {"id": "qdrant", "name": "Qdrant", "host": "localhost", "port": 6333, "public_port": 6333,
      "kind": "http", "path": "/readyz", "group": "Memory & Knowledge"},
-    {"id": "honcho", "name": "Honcho API", "host": "localhost", "port": 8081, "public_port": 8081,
+    {"id": "honcho", "name": "Honcho API", "host": "localhost", "port": 8000, "public_port": 8000,
      "kind": "http", "path": "/healthz", "group": "Memory & Knowledge"},
     {"id": "honcho-db", "name": "Honcho DB (Postgres)", "host": "localhost", "port": 5432, "public_port": None,
-     "kind": "tcp", "group": "Memory & Knowledge"},
+     "kind": "tcp", "group": "Memory & Knowledge", "optional": True},
     {"id": "honcho-redis", "name": "Honcho Redis", "host": "localhost", "port": 6379, "public_port": None,
-     "kind": "tcp", "group": "Memory & Knowledge"},
+     "kind": "tcp", "group": "Memory & Knowledge", "optional": True},
     {"id": "ollama", "name": "Ollama Cloud", "host": "localhost", "port": 11434, "public_port": 11434,
      "kind": "http", "path": "/api/tags", "group": "Inference"},
 
@@ -111,10 +111,12 @@ SERVICES = []
 for svc in DEFAULT_SERVICES:
     host_override = env_override_host(svc["id"])
     port_override = env_override_port(svc["id"])
+    is_optional = svc.get("optional", False) or str(svc.get("host", "")).startswith("YOUR_")
     SERVICES.append({
         **svc,
         "host": host_override or svc["host"],
         "port": port_override or svc["port"],
+        "optional": is_optional,
     })
 
 if env_bool("ENABLE_HEADROOM_MONITORING", False):
@@ -130,11 +132,14 @@ if env_bool("ENABLE_HEADROOM_MONITORING", False):
 PORTAINER_URL = os.getenv("PORTAINER_URL", "").rstrip("/")
 PORTAINER_API_KEY = os.getenv("PORTAINER_API_KEY", "")
 POLL_INTERVAL = float(os.getenv("POLL_INTERVAL_SECONDS", "10"))
+LATENCY_WARN_MS = float(os.getenv("LATENCY_WARN_MS", "2000"))
 PORT = int(os.getenv("PORT", "9500"))
 
 state = {
     "services": {},
     "history": {s["id"]: deque(maxlen=HISTORY_LEN) for s in SERVICES},
+    "incidents": deque(maxlen=300),
+    "prev_up": {},
     "last_run": None,
 }
 
@@ -204,6 +209,7 @@ async def poll_once():
             "kind": svc.get("kind"),
             "path": svc.get("path"),
             "group": svc.get("group"),
+            "optional": svc.get("optional", False),
             **res,
         }
         state["history"][svc["id"]].append({
@@ -212,6 +218,33 @@ async def poll_once():
             "latency_ms": res.get("latency_ms"),
         })
 
+        # incident transition detection
+        prev = state["prev_up"].get(svc["id"])
+        if prev is not None and prev != res["up"]:
+            state["incidents"].append({
+                "ts": time.time(),
+                "id": svc["id"],
+                "name": svc.get("name"),
+                "severity": "critical" if not res["up"] else "resolved",
+                "kind": "down" if not res["up"] else "up",
+                "msg": f'{svc.get("name")} {"went DOWN" if not res["up"] else "recovered"}',
+                "latency_ms": res.get("latency_ms"),
+            })
+        elif res["up"] and res.get("latency_ms") and res["latency_ms"] > LATENCY_WARN_MS:
+            last = state["incidents"][-1] if state["incidents"] else None
+            if not (last and last["id"] == svc["id"] and last["kind"] == "latency"
+                    and time.time() - last["ts"] < 120):
+                state["incidents"].append({
+                    "ts": time.time(),
+                    "id": svc["id"],
+                    "name": svc.get("name"),
+                    "severity": "warn",
+                    "kind": "latency",
+                    "msg": f'{svc.get("name")} high latency {res["latency_ms"]}ms',
+                    "latency_ms": res.get("latency_ms"),
+                })
+        state["prev_up"][svc["id"]] = res["up"]
+
     state["services"]["_portainer"] = await check_portainer()
     state["last_run"] = time.time()
 
@@ -219,6 +252,10 @@ async def poll_once():
 async def poll_loop():
     while True:
         await poll_once()
+        try:
+            await broadcast_status()
+        except Exception:
+            pass
         await asyncio.sleep(POLL_INTERVAL)
 
 
@@ -234,12 +271,30 @@ app = FastAPI(title="J1-NOC StackDeploy Dashboard", lifespan=lifespan)
 
 @app.get("/api/status")
 async def api_status():
+    return JSONResponse(build_status())
+
+
+def build_status():
     services = {k: v for k, v in state["services"].items() if k != "_portainer"}
     history = {k: list(v) for k, v in state["history"].items()}
-    return JSONResponse({
+    services_out = {}
+    for k, v in services.items():
+        hist = state["history"].get(k, deque())
+        samples = [h for h in hist if h.get("up") is not None]
+        up_n = sum(1 for h in samples if h["up"])
+        uptime = round(100.0 * up_n / len(samples), 2) if samples else None
+        services_out[k] = {**v, "uptime_pct": uptime}
+    core = {k: v for k, v in services_out.items() if not v.get("optional")}
+    ext = {k: v for k, v in services_out.items() if v.get("optional")}
+    fleet_up = sum(1 for v in core.values() if v.get("up"))
+    fleet_total = len(core)
+    fleet_slo = round(100.0 * fleet_up / fleet_total, 2) if fleet_total else None
+    core_down = sum(1 for v in core.values() if not v.get("up"))
+    ext_down = sum(1 for v in ext.values() if not v.get("up"))
+    return {
         "last_run": state["last_run"],
         "poll_interval": POLL_INTERVAL,
-        "services": services,
+        "services": services_out,
         "history": history,
         "portainer": {
             "configured": bool(PORTAINER_URL),
@@ -251,7 +306,11 @@ async def api_status():
             "ollama_port": int(os.getenv("OLLAMA_PORT", "11434")),
             "prod_hosts": os.getenv("PROD_HOSTS", ""),
         },
-    })
+        "fleet_slo": fleet_slo,
+        "core_down": core_down,
+        "external_down": ext_down,
+        "incidents": list(state["incidents"])[-50:],
+    }
 
 
 @app.get("/api/tailscale")
@@ -475,7 +534,7 @@ SERVICE_REGISTRY = {
         "name": "Redis",
         "description": "In-memory key-value store. Cache, session, and pub/sub. Managed by Honcho.",
         "tailscale_url": f"redis://{TAILSCALE_IP}:***@localhost:5432/honcho",
-        "api_docs": null,
+        "api_docs": None,
         "group": "Memory & Knowledge",
         "hermes_usage": {
             "env_var": "DATABASE_URL=postgresql://postgres@YOUR_SERVER_IP:5432/honcho",
@@ -640,14 +699,103 @@ async def mesh_redirect():
     from fastapi.responses import RedirectResponse
     return RedirectResponse("/mesh.html")
 
-# Serve static frontend from local directory
-static_dir = str(BASE_DIR.parent / "frontend")
-if os.path.isdir(static_dir):
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+# ── Live WebSocket stream ─────────────────────────────────────────────────────
+WS_CLIENTS = set()
+
+
+async def broadcast_status():
+    if not WS_CLIENTS:
+        return
+    payload = json.dumps(build_status(), default=str)
+    dead = set()
+    for ws in list(WS_CLIENTS):
+        try:
+            await ws.send_text(payload)
+        except Exception:
+            dead.add(ws)
+    for ws in dead:
+        WS_CLIENTS.discard(ws)
+
+
+@app.websocket("/ws")
+async def ws_endpoint(ws: WebSocket):
+    await ws.accept()
+    WS_CLIENTS.add(ws)
+    try:
+        await ws.send_json(build_status())
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        WS_CLIENTS.discard(ws)
+
+
+@app.get("/api/incidents")
+async def api_incidents(limit: int = 50):
+    return JSONResponse({
+        "incidents": list(state["incidents"])[-limit:],
+        "active": [i for i in state["incidents"] if i["severity"] == "critical"],
+    })
+
+
+@app.get("/api/check/{svc_id}")
+async def api_check(svc_id: str):
+    svc = next((s for s in SERVICES if s["id"] == svc_id), None)
+    if not svc:
+        return JSONResponse({"error": "unknown service"}, status_code=404)
+    if svc["kind"] == "http":
+        async with httpx.AsyncClient(follow_redirects=True) as c:
+            res = await check_http(c, svc)
+    else:
+        res = await check_tcp(svc)
+    state["services"][svc_id] = {
+        "id": svc["id"], "name": svc.get("name"), "host": svc.get("host"),
+        "port": svc.get("port"), "public_port": svc.get("public_port"),
+        "kind": svc.get("kind"), "path": svc.get("path"), "group": svc.get("group"),
+        "optional": svc.get("optional", False),
+        **res,
+    }
+    state["history"][svc_id].append({"time": time.time(), "up": res["up"], "latency_ms": res.get("latency_ms")})
+    state["prev_up"][svc_id] = res["up"]
+    return JSONResponse({"id": svc_id, "result": res})
+
+
+# Serve static frontend from local directory (runtime placeholder fill)
+FRONTEND_SRC = str(BASE_DIR.parent / "frontend")
+DIST_DIR = "/tmp/noc-dist"
+
+def build_dist():
+    """Copy frontend to DIST_DIR, substituting infra placeholders with env values.
+    Repo ships placeholders (YOUR_SERVER_IP); live server injects TAILSCALE_IP."""
+    import shutil
+    ip = os.getenv("TAILSCALE_IP", "YOUR_SERVER_IP")
+    host = os.getenv("TAILSCALE_HOST", "YOUR_SERVER_HOST")
+    tailnet = os.getenv("TAILNET_NAME", "YOUR_TAILNET_NAME")
+    repl = (("YOUR_SERVER_IP", ip), ("YOUR_SERVER_HOST", host), ("YOUR_TAILNET_NAME", tailnet))
+    if os.path.exists(DIST_DIR):
+        shutil.rmtree(DIST_DIR)
+    os.makedirs(DIST_DIR, exist_ok=True)
+    for root, _, files in os.walk(FRONTEND_SRC):
+        for fn in files:
+            sp = os.path.join(root, fn)
+            dp = os.path.join(DIST_DIR, os.path.relpath(sp, FRONTEND_SRC))
+            os.makedirs(os.path.dirname(dp), exist_ok=True)
+            if fn.endswith(".html"):
+                t = open(sp, encoding="utf-8").read()
+                for a, b in repl:
+                    t = t.replace(a, b)
+                open(dp, "w", encoding="utf-8").write(t)
+            else:
+                shutil.copy2(sp, dp)
+
+build_dist()
+if os.path.isdir(DIST_DIR):
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
 else:
     @app.get("/")
     async def root():
-        return {"message": "NOC Dashboard backend running", "static_dir": static_dir, "port": PORT}
+        return {"message": "NOC Dashboard backend running (no frontend built)", "port": PORT}
 
 
 if __name__ == "__main__":

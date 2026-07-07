@@ -12,16 +12,16 @@
   :root{
     --bg:#05080f;
     --panel:rgba(5,8,15,0.75);
-    --panel-border:rgba(0,229,255,0.1);
-    --amber:#00e5ff;
+    --panel-border:rgba(255,179,0,0.1);
+    --amber:#ffb300;
     --amber-dim:#006080;
     --amber-dark:#003052;
     --red:#ff0080;
     --text:#e8f4ff;
     --muted:#6b8fa3;
     --glass-bg:rgba(5,8,15,0.75);
-    --glass-border:rgba(0,229,255,0.1);
-    --gradient-brand:linear-gradient(135deg,#00e5ff,#ff0080);
+    --glass-border:rgba(255,179,0,0.1);
+    --gradient-brand:linear-gradient(135deg,#ffb300,#ff0080);
   }
 
   *{box-sizing:border-box;}
@@ -42,7 +42,7 @@
     position:fixed; inset:0;
     background:
       linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%),
-      linear-gradient(90deg, rgba(255,0,128,0.04), rgba(0,229,255,0.02), rgba(255,0,128,0.04));
+      linear-gradient(90deg, rgba(255,0,128,0.04), rgba(255,179,0,0.02), rgba(255,0,128,0.04));
     background-size:100% 2px, 3px 100%;
     pointer-events:none;
     z-index:100;
@@ -50,7 +50,7 @@
   body::after{
     content:"";
     position:fixed; inset:0;
-    background:radial-gradient(circle at 30% 40%,rgba(0,229,255,0.03),transparent 60%),radial-gradient(circle at 70% 60%,rgba(255,0,128,0.03),transparent 60%);
+    background:radial-gradient(circle at 30% 40%,rgba(255,179,0,0.03),transparent 60%),radial-gradient(circle at 70% 60%,rgba(255,0,128,0.03),transparent 60%);
     pointer-events:none; z-index:0;
     animation:bgDrift 12s ease-in-out infinite alternate;
   }
@@ -79,12 +79,12 @@
   .brand .sub{color:var(--muted); font-size:10px; letter-spacing:1.5px; text-transform:uppercase;}
   .nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
   .nav a{color:var(--amber); text-decoration:none; font-size:10px; letter-spacing:1.5px; border:1px solid var(--amber-dark); padding:4px 8px; transition:all .2s;}
-  .nav a:hover{background:rgba(0,229,255,0.08); border-color:var(--amber-dim); box-shadow:0 0 12px rgba(0,229,255,0.15);}
+  .nav a:hover{background:rgba(255,179,0,0.08); border-color:var(--amber-dim); box-shadow:0 0 12px rgba(255,179,0,0.15);}
   .summary{
     display:flex; align-items:center; gap:16px;
     font-size:11px; letter-spacing:1.5px;
   }
-  .count{color:var(--amber); font-size:18px; font-weight:700; text-shadow:0 0 18px rgba(0,229,255,0.7);}
+  .count{color:var(--amber); font-size:18px; font-weight:700; text-shadow:0 0 18px rgba(255,179,0,0.7);}
   .muted{color:var(--muted);}
   .timestamp{color:var(--amber-dim); font-size:10px; letter-spacing:1px;}
 
@@ -100,7 +100,7 @@
     color:var(--text) !important;
     font-family:'JetBrains Mono', monospace !important;
     font-size:11px !important;
-    box-shadow:0 0 30px rgba(0,229,255,0.12) !important;
+    box-shadow:0 0 30px rgba(255,179,0,0.12) !important;
     backdrop-filter:blur(12px);
     border-radius:0 !important;
   }
@@ -132,7 +132,7 @@
   .popup-title{
     color:var(--amber); font-size:12px; font-weight:700;
     letter-spacing:1px; margin-bottom:6px;
-    text-shadow:0 0 8px rgba(0,229,255,0.4);
+    text-shadow:0 0 8px rgba(255,179,0,0.4);
   }
   .popup-row{
     color:var(--muted); font-size:10px; letter-spacing:.5px;
@@ -163,7 +163,7 @@
   .filter-chip.active{
     border-color:var(--amber);
     color:var(--amber);
-    box-shadow:0 0 10px rgba(0,229,255,0.15);
+    box-shadow:0 0 10px rgba(255,179,0,0.15);
   }
 
   .legend{
@@ -208,7 +208,7 @@
     font-family:'JetBrains Mono', monospace !important;
   }
   .leaflet-control-zoom a:hover{
-    background:rgba(0,229,255,0.1) !important;
+    background:rgba(255,179,0,0.1) !important;
     color:var(--amber) !important;
   }
   .leaflet-control-attribution{
@@ -223,9 +223,9 @@
   .hub-pulse{
     width:30px; height:30px;
     border-radius:50%;
-    background:rgba(0,229,255,0.15);
+    background:rgba(255,179,0,0.15);
     border:2px solid var(--amber);
-    box-shadow:0 0 20px rgba(0,229,255,0.4);
+    box-shadow:0 0 20px rgba(255,179,0,0.4);
     animation:hub-pulse 2.5s ease-out infinite;
   }
   @keyframes hub-pulse{
@@ -278,7 +278,7 @@
 <div id="map"></div>
 
 <div class="legend">
-  <div class="legend-item"><div class="legend-dot" style="background:#00e5ff;color:#00e5ff;box-shadow:0 0 6px #00e5ff;"></div>ONLINE</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ffb300;color:#ffb300;box-shadow:0 0 6px #ffb300;"></div>ONLINE</div>
   <div class="legend-item"><div class="legend-dot" style="background:#ffffff33;color:#6b8fa3;"></div>OFFLINE</div>
   <div class="legend-item"><div class="legend-dot" style="background:#6b8fa3;color:#6b8fa3;"></div>RELAY HUB</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;color:#f59e0b;"></div>SELF</div>
@@ -345,12 +345,12 @@ function makeNodeIcon(node){
 
 function makeHubIcon(relayName){
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-    <circle cx="24" cy="24" r="18" fill="rgba(0,229,255,0.08)" stroke="#00e5ff" stroke-width="1.5" stroke-dasharray="4 2">
+    <circle cx="24" cy="24" r="18" fill="rgba(255,179,0,0.08)" stroke="#ffb300" stroke-width="1.5" stroke-dasharray="4 2">
       <animateTransform attributeName="transform" type="rotate" from="0 24 24" to="360 24 24" dur="20s" repeatCount="indefinite"/>
     </circle>
-    <circle cx="24" cy="24" r="10" fill="#00e5ff" opacity="0.9" stroke="#fff" stroke-width="1.5"/>
+    <circle cx="24" cy="24" r="10" fill="#ffb300" opacity="0.9" stroke="#fff" stroke-width="1.5"/>
     <circle cx="24" cy="24" r="4" fill="#05080f"/>
-    <circle cx="24" cy="24" r="22" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.5">
+    <circle cx="24" cy="24" r="22" fill="none" stroke="#ffb300" stroke-width="1" opacity="0.5">
       <animate attributeName="r" from="14" to="26" dur="2s" repeatCount="indefinite"/>
       <animate attributeName="opacity" from="0.8" to="0" dur="2s" repeatCount="indefinite"/>
     </circle>

@@ -21,4 +21,6 @@ obsidian/vault/index.json
 .vscode/
 .idea/
 *.swp
-*.swoCostForge/
+
+*.swo
+CostForge/
