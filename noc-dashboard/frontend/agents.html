@@ -428,6 +428,12 @@
     <pre id="onboardSetup" style="background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); padding:10px; font-size:10px; color:var(--amber); overflow:auto; max-height:220px; white-space:pre-wrap;"></pre>
   </div>
 
+  <!-- ═══ ONBOARDED AGENTS ═══ -->
+  <div class="section">
+    <div class="section-title">Onboarded Agents</div>
+    <div id="agentRegistry"><div style="color:var(--muted);font-size:11px;">Loading registry…</div></div>
+  </div>
+
   <!-- ═══ ONE-COMMAND ═══ -->
   <div class="one-command">
     <div class="cmd-label">One-command agent setup</div>
@@ -607,6 +613,25 @@ async function loadServices(){
 }
 loadServices();
 
+// ── Load onboarded agent registry ──
+async function loadAgents(){
+  try{
+    const r = await fetch('/api/agents', {cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    const el = document.getElementById('agentRegistry');
+    if(!el) return;
+    if(!d.agents.length){ el.innerHTML = '<div style="color:var(--muted);font-size:11px;">No agents onboarded yet. Send a Hermes agent to <span class="var">/agents?agent=&lt;id&gt;</span> to auto-onboard.</div>'; return; }
+    let html = '<table class="env-table"><thead><tr><th>Agent</th><th>Workspace</th><th>Peer</th><th>Memory API</th><th>Notes API</th><th>Passcode</th><th>Created</th></tr></thead><tbody>';
+    d.agents.forEach(a => {
+      const created = a.created_at ? new Date(a.created_at*1000).toISOString().replace('T',' ').slice(0,19) : '-';
+      html += '<tr><td class="var">'+(a.name||a.agent_id)+'</td><td class="val">'+(a.workspace_id||'-')+'</td><td class="val">'+(a.peer_id||'-')+'</td><td class="val">'+(a.memory_api||'-')+'</td><td class="val">'+(a.notes_api||'-')+'</td><td class="val">'+(a.passcode_masked||'-')+'</td><td class="val">'+created+'</td></tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }catch(e){ console.error('Failed to load agents:', e); }
+}
+
 // ── Agent auto-onboarding ──
 async function doOnboard(){
   const out = document.getElementById('onboardResult');
@@ -625,6 +650,7 @@ async function doOnboard(){
     if(d.setup && d.setup.bash) setup.textContent = d.setup.bash;
     status.textContent = 'ONBOARDED ✓  agent_id=' + d.agent_id;
     status.style.color = 'var(--amber)';
+    loadAgents();
   }catch(e){
     status.textContent = 'ERROR ' + e;
     status.style.color = 'var(--red)';
@@ -636,6 +662,7 @@ async function doOnboard(){
   if(/hermes/i.test(ua) || params.has('agent')){
     doOnboard();
   }
+  loadAgents();
 })();
 </script>
 </body>

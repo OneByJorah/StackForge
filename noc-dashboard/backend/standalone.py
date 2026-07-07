@@ -69,54 +69,51 @@ BASE_DIR = Path(__file__).parent.resolve()
 # Services, with optional per-service host/port overrides:
 #   SVC_<ID>_HOST / SVC_<ID>_PORT   (e.g. SVC_SEARXNG_HOST, SVC_QDRANT_PORT)
 DEFAULT_SERVICES = [
+    # --- Core published stack (tracked, counts toward SLO) ---
     {"id": "searxng", "name": "SearXNG", "host": "localhost", "port": 8080, "public_port": 8080,
      "kind": "http", "path": "/search?q=healthcheck&format=json", "group": "Search & Browser"},
-    {"id": "camofox", "name": "Camofox", "host": "localhost", "port": 9377, "public_port": 9377,
-     "kind": "http", "path": "/health", "group": "Search & Browser", "optional": True},
-    {"id": "cloakbrowser", "name": "CloakBrowser", "host": "localhost", "port": 9222, "public_port": 9222,
-     "kind": "http", "path": "/json/version", "group": "Search & Browser", "optional": True},
     {"id": "obsidian", "name": "Obsidian Remote", "host": "localhost", "port": 8080, "public_port": 8083,
      "kind": "http", "path": "/", "group": "Notes & Docs"},
+    {"id": "obsidian-wallpaper", "name": "Obsidian Live Wallpaper", "host": "YOUR_SERVER_IP", "port": 3000, "public_port": 3000,
+     "kind": "http", "path": "/", "group": "Notes & Docs", "optional": True},
+    {"id": "couchdb", "name": "CouchDB (LiveSync)", "host": "localhost", "port": 5984, "public_port": 5984,
+     "kind": "tcp", "group": "Notes & Docs"},
     {"id": "qdrant", "name": "Qdrant", "host": "localhost", "port": 6333, "public_port": 6333,
      "kind": "http", "path": "/readyz", "group": "Memory & Knowledge"},
     {"id": "honcho", "name": "Honcho API", "host": "localhost", "port": 8000, "public_port": 8000,
      "kind": "http", "path": "/healthz", "group": "Memory & Knowledge"},
+    {"id": "ollama", "name": "Ollama Cloud", "host": "localhost", "port": 11434, "public_port": 11434,
+     "kind": "http", "path": "/api/tags", "group": "Inference"},
+    {"id": "mission-control", "name": "Mission Control", "host": "localhost", "port": 51763, "public_port": 51763,
+     "kind": "http", "path": "/", "group": "Dashboards"},
+    {"id": "hs-bridge", "name": "Hermes Hub · Bridge", "host": "YOUR_SERVER_IP", "port": 18000, "public_port": 18000,
+     "kind": "http", "path": "/health", "group": "Hermes Satellite"},
+    {"id": "hs-ears", "name": "Hermes Hub · Ears (STT)", "host": "YOUR_SERVER_IP", "port": 9000, "public_port": 9000,
+     "kind": "http", "path": "/health", "group": "Hermes Satellite"},
+    {"id": "hs-mouth", "name": "Hermes Hub · Mouth (TTS)", "host": "YOUR_SERVER_IP", "port": 9001, "public_port": 9001,
+     "kind": "http", "path": "/health", "group": "Hermes Satellite"},
+
+    # --- Optional / standby infrastructure (excluded from SLO) ---
     {"id": "honcho-db", "name": "Honcho DB (Postgres)", "host": "localhost", "port": 5432, "public_port": None,
      "kind": "tcp", "group": "Memory & Knowledge", "optional": True},
     {"id": "honcho-redis", "name": "Honcho Redis", "host": "localhost", "port": 6379, "public_port": None,
      "kind": "tcp", "group": "Memory & Knowledge", "optional": True},
-    {"id": "ollama", "name": "Ollama Cloud", "host": "localhost", "port": 11434, "public_port": 11434,
-     "kind": "http", "path": "/api/tags", "group": "Inference"},
-
-    # Tailscale client services
-    {"id": "openwebui", "name": "Open WebUI (Helpdesk)", "host": "YOUR_HELPDESK_HOST", "port": 8080, "public_port": 8080,
-     "kind": "http", "path": "/", "group": "Headroom"},
-    {"id": "openwebui-ollama", "name": "Open WebUI (Ollama)", "host": "YOUR_OLLAMA_HOST", "port": 8000, "public_port": 8000,
-     "kind": "http", "path": "/", "group": "Inference"},
-    {"id": "noc-server-1", "name": "NOC Server 1", "host": "YOUR_NOC_HOST", "port": 8080, "public_port": 8080,
-     "kind": "http", "path": "/", "group": "Headroom"},
-    {"id": "j1helpdesk-app", "name": "J1 Helpdesk Dashboard", "host": "YOUR_HELPDESK_HOST", "port": 3000, "public_port": 3000,
-     "kind": "http", "path": "/", "group": "Headroom"},
-    {"id": "j1helpdesk-prom", "name": "J1 Helpdesk Prometheus", "host": "YOUR_HELPDESK_HOST", "port": 9090, "public_port": 9090,
-     "kind": "http", "path": "/", "group": "Headroom"},
-    {"id": "j1helpdesk-portal", "name": "J1 Helpdesk Portal", "host": "YOUR_HELPDESK_HOST", "port": 8000, "public_port": 8000,
-     "kind": "http", "path": "/", "group": "Headroom"},
-    {"id": "uptimekuma", "name": "Uptime Kuma", "host": "YOUR_UPTIMEKUMA_HOST", "port": 3001, "public_port": 3001,
-     "kind": "http", "path": "/", "group": "Headroom"},
-    {"id": "shinobi", "name": "Shinobi CCTV", "host": "YOUR_SHINOBI_HOST", "port": 8080, "public_port": 8080,
-     "kind": "http", "path": "/", "group": "Headroom"},
-    {"id": "det-noc-db", "name": "det-noc Postgres", "host": "YOUR_POSTGRES_HOST", "port": 5432, "public_port": None,
-     "kind": "tcp", "group": "Memory & Knowledge"},
+    {"id": "camofox", "name": "Camofox", "host": "localhost", "port": 9377, "public_port": 9377,
+     "kind": "http", "path": "/health", "group": "Search & Browser", "optional": True},
+    {"id": "cloakbrowser", "name": "CloakBrowser", "host": "localhost", "port": 9222, "public_port": 9222,
+     "kind": "http", "path": "/json/version", "group": "Search & Browser", "optional": True},
 ]
 
 SERVICES = []
+TS_IP = os.getenv("TAILSCALE_IP", "YOUR_SERVER_IP")
 for svc in DEFAULT_SERVICES:
     host_override = env_override_host(svc["id"])
     port_override = env_override_port(svc["id"])
-    is_optional = svc.get("optional", False) or str(svc.get("host", "")).startswith("YOUR_")
+    resolved_host = (host_override or svc["host"]).replace("YOUR_SERVER_IP", TS_IP)
+    is_optional = svc.get("optional", False) or str(resolved_host).startswith("YOUR_")
     SERVICES.append({
         **svc,
-        "host": host_override or svc["host"],
+        "host": resolved_host,
         "port": port_override or svc["port"],
         "optional": is_optional,
     })
