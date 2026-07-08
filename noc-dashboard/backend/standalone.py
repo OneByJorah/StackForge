@@ -792,7 +792,7 @@ async def api_agents_onboard(request: Request):
         except Exception:
             key = None
     setup_bash = (
-        f"# StackDeploy agent onboarding — run to self-configure (nothing manual)\n"
+        f"# StackForge agent onboarding — run to self-configure (nothing manual)\\n"
         f"hermes config set model.base_url http://{ip}:11434\n"
         f"hermes config set model.provider custom:ollama\n"
         f"hermes config set memory.provider custom\n"

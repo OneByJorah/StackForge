@@ -1,7 +1,7 @@
 # Session Summary — 2026-07-07
 
 ## Scope
-Final checkup, fix, and hardening of the J1-NOC-Platform (StackDeploy) monitoring + Hermes Hub voice stack.
+Final checkup, fix, and hardening of the J1-NOC-Platform (StackForge) monitoring + Hermes Hub voice stack.
 
 ## What was done this session
 1. **NOC Dashboard node-status fix** (`noc-dashboard/backend/standalone.py`)
@@ -10,8 +10,8 @@ Final checkup, fix, and hardening of the J1-NOC-Platform (StackDeploy) monitorin
    - Added runtime `YOUR_SERVER_IP -> TAILSCALE_IP` substitution in the SERVICES build loop.
 2. **Header rename** (`frontend/index.html`): `节点状态追踪系统` → `Jhonattan L. Jimenez`.
 3. **IP redaction**: 0 literal Tailscale IPs remain in source (placeholder + runtime resolution).
-4. **Committed + pushed** to `OneByJorah/StackDeploy` (private): `4e8a567`.
-5. **Repo flipped private** (was public) for consistency with other StackDeploy repos.
+4. **Committed + pushed** to `OneByJorah/StackForge` (private): `4e8a567`.
+5. **Repo flipped private** (was public) for consistency with other StackForge repos.
 6. **Hermes Hub verified**: bridge :18000, ears :9000, mouth :9001 all healthy; end-to-end STT→LLM→TTS round-trip confirmed earlier.
 
 ## Final checkup results (post-restart)

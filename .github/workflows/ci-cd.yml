@@ -1,4 +1,4 @@
-name: StackDeploy CI/CD
+name: StackForge CI/CD
 
 on:
   push:
@@ -90,7 +90,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
           script: |
-            cd /path/to/StackDeploy
+            cd /path/to/StackForge
             git pull origin main
             cp .env.example .env 2>/dev/null || true
             docker compose pull

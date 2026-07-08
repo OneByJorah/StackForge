@@ -8,7 +8,7 @@ name: stackdeploy
 services:
   honcho-api:
     build:
-      context: /home/j1admin/StackDeploy/vendor/honcho
+      context: /home/j1admin/StackForge/vendor/honcho
       dockerfile: docker/Dockerfile
     depends_on:
       honcho-db:
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
     volumes:
       - type: bind
-        source: /home/j1admin/StackDeploy/honcho/config.toml
+        source: /home/j1admin/StackForge/honcho/config.toml
         target: /app/config.toml
         read_only: true
         bind: {}
