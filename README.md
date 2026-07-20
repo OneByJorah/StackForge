@@ -211,7 +211,7 @@ The entire stack is designed to be consumed by Hermes agents. Configure your age
                         │
                         ▼
 ┌────────────────────────────────────────────────────┐
-│                   STACKDEPLOY                        │
+│                   STACKFORGE                           │
 │                                                      │
 │  SEARCH       MEMORY          STORAGE                │
 │  SearXNG      Honcho + PG     Qdrant                 │
@@ -256,14 +256,14 @@ StackForge/
 
 ## 📄 License
 
-MIT
+MIT © Jhonattan L. Jimenez / JorahOne LLC
 
 ---
 
 ## Security
 
 - **No secrets in git** — `.env`, `.env.honcho` in `.gitignore`; `.env.example` has placeholders
-- **Network isolation** — Internal Docker network (`stackdeploy-backend`) for DB/cache; ports explicitly mapped
+- **Network isolation** — Internal Docker network (`backend`) for DB/cache; ports explicitly mapped
 - **Tailscale** — All inter-host traffic encrypted; no public ports needed
 - **Read-only mounts** — Config files mounted `:ro` where possible
 - **Health checks** — Every service auto-reports status to Docker
