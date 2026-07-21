@@ -8,14 +8,14 @@
 <br>
 
 <div align="center">
-  <h1>📦 StackForge</h1>
-  <p><strong>Production-Ready Docker Compose Stack for Hermes Agents</strong></p>
-  <p>One IP, one stack — CPU-only, privacy-focused, self-hosted</p>
+  <h1>StackForge</h1>
+  <p><strong>Production-Ready Docker Compose Stack for AI Agents</strong></p>
+  <p>One stack — CPU-only, privacy-focused, self-hosted</p>
   <p>
     <a href="#-features">Features</a> •
     <a href="#-quick-start">Quick Start</a> •
     <a href="#-services">Services</a> •
-    <a href="#-healthcheck-notes">Healthcheck Notes</a>
+    <a href="#-environment-variables">Environment</a>
   </p>
 </div>
 
@@ -25,14 +25,14 @@
 
 - **One Command Deploy** — Single bootstrap script for full stack
 - **CPU Only** — Optimized for consumer hardware (GPU optional for Ollama)
-- **Privacy-Focused** — Self-hosted search with SearXNG, no third-party APIs
+- **Privacy-Focused** — Self-hosted search with SearXNG, no third-party APIs required
 - **Long-Term Memory** — Honcho API with PostgreSQL + pgvector + Redis
 - **Vector Database** — Qdrant for RAG and semantic search
 - **Obsidian Integration** — CouchDB LiveSync vault with web viewer
 - **P2P File Sync** — Syncthing between server and laptop
 - **Browser Automation** — Selenium standalone Chrome for agent web tasks
 - **Local LLM** — Ollama for offline inference
-- **Tailscale Ready** — All services exposed on a single Tailscale IP
+- **Mesh Networking Ready** — All services exposed on a single host IP
 
 ---
 
@@ -58,7 +58,6 @@
 ### Prerequisites
 
 - Docker & docker-compose (v1 or v2)
-- Tailscale (recommended, for multi-machine access)
 - 8GB+ RAM, 50GB+ disk
 
 ### Setup
@@ -159,7 +158,7 @@ All secrets in `.env` (never committed — it's in `.gitignore`). See `.env.exam
 
 | Variable | Purpose | Required |
 |----------|---------|----------|
-| `SERVER_IP` | Your Tailscale/local IP for service URLs | Yes |
+| `SERVER_IP` | Your local/mesh IP for service URLs | Yes |
 | `HONCHO_DB_PASSWORD` | PostgreSQL password for Honcho | Yes |
 | `HONCHO_TOKEN` | Honcho API auth token | Yes |
 | `COUCHDB_ADMIN_USER` | CouchDB admin username | Yes |
@@ -167,6 +166,7 @@ All secrets in `.env` (never committed — it's in `.gitignore`). See `.env.exam
 | `COUCHDB_SYNC_USER` | CouchDB sync user for Obsidian | Yes |
 | `COUCHDB_SYNC_PASSWORD` | CouchDB sync password | Yes |
 | `OBSIDIAN_VAULT_PATH` | Host path for Hermes agent notes | Optional |
+| `OLLAMA_HOST` | Ollama base URL (e.g. `http://ollama:11434`) | Optional |
 
 ### Honcho LLM Provider (`.env.honcho`)
 
@@ -182,13 +182,13 @@ Honcho needs an OpenAI-compatible LLM provider for its embedding/LLM features. C
 
 ---
 
-## 🌐 Hermes Agent Integration
+## 🌐 Agent Integration
 
-The entire stack is designed to be consumed by Hermes agents. Configure your agent's provider settings to point at the Tailscale IP where StackForge runs.
+The entire stack is designed to be consumed by AI agents. Configure your agent to point at the host IP where StackForge runs.
 
 ### Agent configuration
 
-| Service | URL Pattern | Hermes Provider |
+| Service | URL Pattern | Agent Provider |
 |---------|-------------|-----------------|
 | Honcho | `http://YOUR_IP:8000` | `custom` memory provider |
 | SearXNG | `http://YOUR_IP:8080` | `custom` search provider |
@@ -205,13 +205,13 @@ The entire stack is designed to be consumed by Hermes agents. Configure your age
 
 ```
 ┌────────────────────────────────────────────────────┐
-│               TAILSCALE NETWORK                      │
+│               HOST / MESH NETWORK                    │
 │           Single IP exposes all ports                 │
 └────────────────────────────────────────────────────┘
                         │
                         ▼
 ┌────────────────────────────────────────────────────┐
-│                   STACKDEPLOY                        │
+│                   STACKFORGE                         │
 │                                                      │
 │  SEARCH       MEMORY          STORAGE                │
 │  SearXNG      Honcho + PG     Qdrant                 │
@@ -224,9 +224,9 @@ The entire stack is designed to be consumed by Hermes agents. Configure your age
 ```
 
 **Data Flow:**
-- Hermes Agent → Local services (search, memory, browser) → Optional upstream LLM via Hermes config
+- AI Agent → Local services (search, memory, browser) → Optional upstream LLM via agent config
 - All services communicate over Docker internal network
-- Single Tailscale IP exposes everything via direct ports
+- Single host/mesh IP exposes everything via direct ports
 
 ---
 
@@ -239,24 +239,16 @@ StackForge/
 ├── .env.honcho.example        # Honcho LLM provider config template
 ├── bootstrap.sh               # One-command deploy script
 ├── searxng/                   # SearXNG configuration
-│   └── settings.yml
-├── honcho/
-│   ├── config.toml            # Honcho API config
-│   └── couchdb-init.sh        # CouchDB user initialization
-├── obsidian/
-│   ├── Caddyfile              # Caddy reverse proxy config
-│   ├── index.html             # Vault viewer HTML
-│   └── vault/                 # Markdown note vault
-│       └── Welcome.md
-└── syncthing/
-    └── config/                # Syncthing device configuration
+├── honcho/                    # Honcho API config
+├── obsidian/                  # Vault viewer + Caddy config
+└── syncthing/                 # Syncthing device configuration
 ```
 
 ---
 
 ## 📄 License
 
-MIT
+MIT © Jhonattan L. Jimenez
 
 ---
 
@@ -264,6 +256,8 @@ MIT
 
 - **No secrets in git** — `.env`, `.env.honcho` in `.gitignore`; `.env.example` has placeholders
 - **Network isolation** — Internal Docker network (`stackdeploy-backend`) for DB/cache; ports explicitly mapped
-- **Tailscale** — All inter-host traffic encrypted; no public ports needed
+- **Mesh networking** — All inter-host traffic encrypted; no public ports needed
 - **Read-only mounts** — Config files mounted `:ro` where possible
 - **Health checks** — Every service auto-reports status to Docker
+
+Report vulnerabilities to **info@jorahone.com**.
