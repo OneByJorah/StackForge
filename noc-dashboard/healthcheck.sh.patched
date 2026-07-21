@@ -40,7 +40,7 @@ check_service "Honcho API" "http://$SERVER:8081/healthz" "" || FAILED=1
 echo ""
 echo "Admin:"
 check_service "Portainer" "http://$SERVER:9000/" "" || FAILED=1
-check_service "J1-NOC Dashboard" "http://$SERVER:9500/api/healthz" "ok" || FAILED=1
+check_service "NOC Dashboard" "http://$SERVER:9500/api/healthz" "ok" || FAILED=1
 
 echo ""
 if [[ $FAILED -eq 0 ]]; then

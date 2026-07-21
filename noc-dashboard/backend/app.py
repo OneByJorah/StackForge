@@ -1,5 +1,5 @@
 """
-J1-NOC Dashboard — StackForge monitoring backend.
+NOC Dashboard — StackForge monitoring backend.
 
 Polls every service in StackForge over the internal Docker network using
 the SAME health endpoints defined in docker-compose.yml / scripts/healthcheck.sh,
@@ -192,7 +192,7 @@ async def lifespan(app: FastAPI):
 
 TAILSCALE_IP = os.getenv("TAILSCALE_IP", "YOUR_SERVER_IP")
 
-app = FastAPI(title="J1-NOC StackForge Dashboard", lifespan=lifespan)
+app = FastAPI(title="NOC StackForge Dashboard", lifespan=lifespan)
 
 # ── Self-hosted API registry ──────────────────────────────────────────────────
 # This is the catalog that other Hermes agents on Tailscale query to discover
@@ -315,7 +315,7 @@ async def api_services():
 async def api_services_sh():
     """Shell script snippet — source from any Hermes agent on Tailscale to set env vars."""
     lines = ["#!/bin/bash",
-             f"# J1-NOC self-hosted API registry — sourced from http://{TAILSCALE_IP}:9500/api/services.sh",
+             f"# NOC self-hosted API registry — sourced from http://{TAILSCALE_IP}:9500/api/services.sh",
              "# Run:  source <(curl -s http://YOUR_SERVER_IP:9500/api/services.sh)",
              "",
              f"export TAILSCALE_MSCONTROL={TAILSCALE_IP}",
@@ -341,7 +341,7 @@ async def api_services_sh():
              "export J1_NOC_NODE=YOUR_SERVER_HOST",
              "export J1_NOC_TAILNET=YOUR_TAILNET_NAME",
              "",
-             "echo '[J1-NOC Registry] Services loaded:'",
+             "echo '[NOC Registry] Services loaded:'",
              "echo '  Search:    SearXNG     → $SEARXNG_URL'",
              "echo '  Vectors:   Qdrant      → $QDRANT_URL'",
              "echo '  Cache:     Redis       → $REDIS_URL'",

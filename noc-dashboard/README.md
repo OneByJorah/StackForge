@@ -1,4 +1,4 @@
-# J1-NOC Dashboard
+# NOC Dashboard
 
 Read-only monitoring dashboard for StackForge. Polls every service's real health
 endpoint (the same ones in `docker-compose.yml` / `scripts/healthcheck.sh`) over the

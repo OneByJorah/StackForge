@@ -1,5 +1,5 @@
 """
-J1-NOC Dashboard — Standalone version (no Docker required).
+NOC Dashboard — Standalone version (no Docker required).
 Mounts static files from local frontend/ dir and adds localhost fallback
 for services so health checks work even without Docker network.
 """
@@ -265,7 +265,7 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="J1-NOC StackForge Dashboard", lifespan=lifespan)
+app = FastAPI(title="NOC StackForge Dashboard", lifespan=lifespan)
 
 
 @app.get("/api/status")
@@ -637,7 +637,7 @@ async def api_services_sh():
     """Shell script snippet — source from any Hermes agent on Tailscale to set env vars."""
     lines = [
         "#!/bin/bash",
-        f"# J1-NOC self-hosted API registry — sourced from http://{TAILSCALE_IP}:9500/api/services.sh",
+        f"# NOC self-hosted API registry — sourced from http://{TAILSCALE_IP}:9500/api/services.sh",
         "# Run:  source <(curl -s http://YOUR_SERVER_IP:9500/api/services.sh)",
         "",
         f"export TAILSCALE_MSCONTROL={TAILSCALE_IP}",
@@ -663,7 +663,7 @@ async def api_services_sh():
         "export J1_NOC_NODE=YOUR_SERVER_HOST",
         "export J1_NOC_TAILNET=YOUR_TAILNET_NAME",
         "",
-        "echo '[J1-NOC Registry] Services loaded:'",
+        "echo '[NOC Registry] Services loaded:'",
         "echo '  Search:    SearXNG     -> $SEARXNG_URL'",
         "echo '  Vectors:   Qdrant      -> $QDRANT_URL'",
         "echo '  Cache:     Redis       -> $REDIS_URL'",
