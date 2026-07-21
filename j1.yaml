@@ -1,7 +1,0 @@
-repo: StackForge
-class: DevOps / Orchestration
-org: OneByJorah
-license: MIT
-production_score: 62
-last_audit: "2026-07-05"
-deploy_target: scratch
