@@ -24,3 +24,6 @@ obsidian/vault/index.json
 *.swo
 CostForge/
 reports/
+
+# OneByJorah portfolio tooling
+.venv-screenshot/

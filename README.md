@@ -1,29 +1,24 @@
 <div align="center">
-  <img src="https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white">
-  <img src="https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white">
-  <img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge">
-</div>
 
-<br>
+![StackForge banner](docs/assets/banner.svg)
 
-<div align="center">
-  <h1>StackForge</h1>
-  <p><strong>Production-Ready Docker Stack for AI Agents</strong></p>
-  <p>CPU-only, privacy-focused, one command deploy.</p>
-  <p>
-    <a href="#features">Features</a> •
-    <a href="#quick-start">Quick Start</a> •
-    <a href="#stack">Stack</a> •
-    <a href="#contributing">Contributing</a>
-  </p>
+# StackForge
+
+Production-ready Docker Compose stack for AI agents
+
+![License](https://img.shields.io/badge/license-MIT-brightgreen)
+![Language](https://img.shields.io/badge/language-HTML-blue)
 </div>
 
 ---
 
-## Screenshot
+<p align="center">
+  <img src="docs/assets/screenshot.png" alt="StackForge preview" width="90%">
+</p>
 
-![StackForge Dashboard](docs/screenshot.png)
-*Self-hosted AI agent stack with Ollama, Qdrant, and Honcho.*
+<br>
+
+---
 
 ## Features
 
@@ -42,7 +37,6 @@
 git clone https://github.com/OneByJorah/StackForge.git
 cd StackForge
 
-# Configure your models
 cp .env.example .env
 
 # Deploy the stack
@@ -132,7 +126,18 @@ MIT © Jhonattan L. Jimenez
 
 ---
 
-<div align="center">
-  <p>Production-ready AI agent stack.</p>
-  <p><a href="https://github.com/OneByJorah">@OneByJorah</a></p>
-</div>
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## 🔒 Security
+
+Found a vulnerability? Please follow our [Security Policy](SECURITY.md) and report privately to `security@jorahone.com`.
+
+## 📄 License
+
+[MIT License](LICENSE) © Jhonattan L. Jimenez (OneByJorah)
+
+---
+
+<p align="center">Built with 🌴 by <a href="https://github.com/OneByJorah">OneByJorah</a> · <a href="https://jorahone.com">jorahone.com</a></p>
