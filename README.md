@@ -1,60 +1,68 @@
 <div align="center">
 
-# ⛓ StackForge
+![StackForge banner](docs/assets/banner.svg)
 
-**Production-ready Docker Compose stack for AI agents**  
-One command. Self-hosted. Privacy-first. No GPU required.
+# StackForge
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen)](LICENSE)
-[![GitHub release](https://img.shields.io/github/v/release/OneByJorah/StackForge?color=38bdf8)](https://github.com/OneByJorah/StackForge/releases)
-[![GitHub stars](https://img.shields.io/github/stars/OneByJorah/StackForge?style=flat&color=f59e0b)](https://github.com/OneByJorah/StackForge/stargazers)
-[![Last commit](https://img.shields.io/github/last-commit/OneByJorah/StackForge?color=6366f1)](https://github.com/OneByJorah/StackForge/commits)
-[![Docker Compose](https://img.shields.io/badge/docker%20compose-ready-2496ED?logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![CPU Only](https://img.shields.io/badge/CPU--only%20|%20no%20GPU%20required-22c55e)](https://ollama.com)
-[![Privacy First](https://img.shields.io/badge/privacy--first-6366f1)](https://github.com/OneByJorah/StackForge)
+**CPU-only, privacy-focused Docker Compose stack for AI agents** — local LLM, vector search, long-term memory, and synced notes, all self-hosted.
 
-<br>
-
-![StackForge landing page](docs/screenshots/landing-hero.png)
+<a href="https://github.com/OneByJorah/StackForge/stargazers"><img src="https://img.shields.io/github/stars/OneByJorah/StackForge?style=flat-square" alt="Stars"></a>
+<a href="https://github.com/OneByJorah/StackForge/commits"><img src="https://img.shields.io/github/last-commit/OneByJorah/StackForge?style=flat-square" alt="Last commit"></a>
+<img src="https://img.shields.io/github/license/OneByJorah/StackForge?style=flat-square" alt="License">
+<img src="https://img.shields.io/badge/Docker%20Compose-ready-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose">
+<img src="https://img.shields.io/badge/CPU--only-no%20GPU-22c55e?style=flat-square" alt="CPU only">
+<img src="https://img.shields.io/badge/Ollama-000?style=flat-square&logo=ollama&logoColor=white" alt="Ollama">
 
 ![StackForge screenshot](docs/assets/screenshot.png)
 
-<br>
-
-[Getting Started](#-quick-start) •
-[Architecture](#-architecture) •
-[Services](#-services) •
-[Configuration](#-configuration) •
-[Contributing](#-contributing)
-
 </div>
 
----
+## Quick Start
 
-## ✨ Features
+```bash
+git clone https://github.com/OneByJorah/StackForge.git
+cd StackForge
+cp .env.example .env
+docker compose up -d
+```
 
-| Feature | Description |
-|---------|-------------|
-| **One Command Deploy** | `docker compose up -d` and your entire AI agent stack is ready |
-| **CPU-Only** | No GPU required — runs on any VPS, homelab, or bare metal machine |
-| **Privacy-Focused** | All data stays on your infrastructure. No third-party APIs, no data leaks |
-| **Local LLMs** | Ollama-powered language models (Llama 3, Mistral, Phi, etc.) |
-| **Vector Database** | Qdrant for high-performance embedding storage and similarity search |
-| **Agent Memory** | Honcho provides long-term persistent memory for AI agents |
-| **Private Search** | SearXNG aggregates web search without tracking or profiling |
-| **Obsidian Sync** | CouchDB-backed LiveSync for notes, knowledge, and agent vaults |
-| **Web Automation** | Selenium standalone Chrome for browser automation tasks |
-| **P2P File Sync** | Syncthing for laptop-to-server vault synchronization |
+For an interactive first-run wizard that generates secrets and sets your IP, run `bash bootstrap.sh` instead. Open **http://localhost:8083** for the vault viewer.
 
-## 🏗 Architecture
+## What This Is
+
+StackForge bundles the pieces an AI agent needs to run privately on your own hardware: a local LLM, a vector database, persistent memory, private search, a synced notes vault, and browser automation. It targets CPU-only boxes — a VPS, homelab server, or bare-metal machine — and keeps all agent context on infrastructure you control instead of a vendor's.
+
+## Features
+
+- **One-command deploy** — `docker compose up -d` (or `bootstrap.sh` for a guided setup) brings the stack online.
+- **Interactive first run** — `bootstrap.sh` prompts for secrets, generates random passwords, and seeds the vault.
+- **CPU-only** — no GPU required; GPU acceleration can be enabled by uncommenting the Ollama deploy block.
+- **Local LLMs** — Ollama serves Llama 3, Mistral, Phi, and more, with Honcho embeddings via `nomic-embed-text`.
+- **Agent memory** — Honcho (pgvector Postgres + Redis) provides long-term agent memory.
+- **Private search** — SearXNG aggregates web search without tracking.
+- **Obsidian sync** — CouchDB LiveSync plus Syncthing for laptop ↔ server vault sync.
+- **Web automation** — Selenium standalone Chrome for browser tasks.
+
+## Services
+
+| Service | Port | Purpose | Image |
+|---------|------|---------|-------|
+| **Ollama** | `11434` | Local LLM hosting | `ollama/ollama` |
+| **Qdrant** | `6333` | Vector database for embeddings | `qdrant/qdrant` |
+| **Honcho API** | `8000` | Long-term agent memory | `ghcr.io/plastic-labs/honcho` |
+| **SearXNG** | `8080` | Privacy-respecting metasearch | `searxng/searxng` |
+| **PostgreSQL** | `5432` | Honcho backend (pgvector) | `pgvector/pgvector:pg15` |
+| **Redis** | `6379` | Cache / queues | `redis:8.2` |
+| **CouchDB** | `5984` | Obsidian LiveSync document store | `couchdb:3.4` |
+| **Obsidian** | `8083` | Web vault viewer (Caddy) | `caddy:2-alpine` |
+| **Syncthing** | `8384` | P2P file sync (laptop ↔ server) | `syncthing/syncthing` |
+| **Selenium** | `4444` | Browser automation (Chrome) | `selenium/standalone-chrome` |
+
+## Architecture
 
 ```
                    ┌─────────────┐
                    │  AI Agent   │
-                   └──────┬──────┘
-                          │
-                   ┌──────┴──────┐
-                   │  API Layer  │
                    └──────┬──────┘
                           │
           ┌───────────────┼───────────────┐
@@ -77,77 +85,54 @@ One command. Self-hosted. Privacy-first. No GPU required.
     └──────────┘   └──────────┘   └─────────────┘
 ```
 
-## 🛠 Services
+Two Docker networks are used: a `tailnet` bridge for exposed services and an internal `backend` network for the database and cache. Optional `docker-compose.headroom.yml` and `docker-compose.portainer.yml` overlays add monitoring and container management.
 
-| Service | Port | Purpose | Image |
-|---------|------|---------|-------|
-| **Ollama** | `11434` | Local LLM hosting (Llama, Mistral, Phi, etc.) | `ollama/ollama` |
-| **Qdrant** | `6333` | Vector database for embeddings | `qdrant/qdrant` |
-| **Honcho** | `8000` | Long-term agent memory API | `ghcr.io/plastic-labs/honcho` |
-| **SearXNG** | `8080` | Privacy-respecting meta search engine | `searxng/searxng` |
-| **PostgreSQL** | `5432` | Relational database (Honcho backend) | `pgvector/pgvector:pg15` |
-| **Redis** | `6379` | Caching and message queues | `redis:8.2` |
-| **CouchDB** | `5984` | Obsidian LiveSync document store | `couchdb:3.4` |
-| **Obsidian** | `8083` | Web vault viewer (Caddy) | `caddy:2-alpine` |
-| **Syncthing** | `8384` | P2P file sync (laptop ↔ server) | `syncthing/syncthing` |
-| **Selenium** | `4444` | Browser automation (Chrome) | `selenium/standalone-chrome` |
+## Configuration
 
-## 🧰 Tech Stack
-
-- **Runtime:** Docker & Docker Compose
-- **LLM:** Ollama (local, no cloud dependencies)
-- **Vector DB:** Qdrant
-- **Memory Layer:** Honcho + pgvector + Redis
-- **Search:** SearXNG
-- **Notes & Sync:** Obsidian + CouchDB LiveSync + Syncthing
-- **Automation:** Selenium standalone Chrome
-- **Networking:** Tailscale (recommended), internal bridge networks
-
-## 🚀 Quick Start
-
-```bash
-# Clone the repo
-git clone https://github.com/OneByJorah/StackForge.git
-cd StackForge
-
-# Copy environment template
-cp .env.example .env
-
-# Deploy the entire stack
-docker compose up -d
-
-# Check service health
-./scripts/healthcheck.sh
-```
-
-### Access Services
-
-| Service | URL |
-|---------|-----|
-| Ollama API | `http://localhost:11434` |
-| Qdrant Dashboard | `http://localhost:6333/dashboard` |
-| Honcho API | `http://localhost:8000` |
-| SearXNG | `http://localhost:8080` |
-| Obsidian Vault | `http://localhost:8083` |
-| Syncthing UI | `http://localhost:8384` |
-| CouchDB | `http://localhost:5984/_utils` |
-
-## 🔧 Configuration
+Copy `.env.example` to `.env` and set real values. Key variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_IP` | *(required)* | Host IP used in service URLs (Tailscale IP recommended) |
 | `HONCHO_DB_PASSWORD` | `changeme` | PostgreSQL password (Honcho backend) — **change it** |
 | `HONCHO_TOKEN` | *(required)* | Honcho API auth token |
-| `QDRANT_PORT` | `6333` | Qdrant API port |
 | `SVC_HONCHO_PORT` | `8000` | Honcho API port |
 | `SVC_SEARXNG_PORT` | `8080` | SearXNG port |
+| `SVC_QDRANT_PORT` | `6333` | Qdrant API port |
+| `SVC_COUCHDB_PORT` | `5984` | CouchDB / LiveSync port |
+| `SVC_SYNCTHING_UI_PORT` | `8384` | Syncthing web UI port |
 | `COUCHDB_ADMIN_USER` | `admin` | CouchDB admin username |
 | `COUCHDB_ADMIN_PASSWORD` | `changeme` | CouchDB admin password — **change it** |
+| `OBSIDIAN_VAULT_PATH` | `/path/to/your/obsidian/vault` | Host path for the vault |
+| `OLLAMA_HOST` | `http://ollama:11434` | Ollama endpoint used by Honcho |
 
-Full reference in [`.env.example`](.env.example).
+Honcho's LLM provider is configured separately in `.env.honcho.example` (OpenRouter/OpenAI-compatible). Headroom settings live in `.env.headroom.example`.
 
-## 📁 Project Structure
+> [!WARNING]
+> `bootstrap.sh` writes generated credentials to `obsidian/vault/credentials.md`. Delete that file after recording them, or keep the deployment behind Tailscale only.
+
+## Use Cases
+
+1. **Homelabbers** — run a private AI brain on a CPU-only server.
+2. **AI developers** — build and test agents against local inference and memory.
+3. **Privacy-conscious teams** — keep search, notes, and memory off third-party clouds.
+4. **Field / edge deployments** — sync a vault from a laptop to a server with Syncthing.
+
+## Tech Stack
+
+Docker Compose, Ollama, Qdrant, Honcho, SearXNG, PostgreSQL + pgvector, Redis, CouchDB, Caddy, Syncthing, Selenium, Jinja2-based config templates.
+
+## Screenshots
+
+| View | Preview |
+|------|---------|
+| Landing hero | ![StackForge landing hero](docs/screenshots/landing-hero.png) |
+| Full landing | ![StackForge landing page](docs/screenshots/landing-full.png) |
+| Main viewport | ![StackForge main view](docs/screenshots/main.viewport.png) |
+| SearXNG | ![StackForge SearXNG](docs/screenshots/searxng.png) |
+| Vault viewer | ![StackForge vault viewer](docs/screenshots/vault-viewer.png) |
+
+## Project Structure
 
 ```
 StackForge/
@@ -157,50 +142,29 @@ StackForge/
 ├── .env.example                  # Environment variable template
 ├── bootstrap.sh                  # Interactive first-run setup wizard
 ├── index.html                    # Landing page
-├── docs/
-│   └── assets/                   # Screenshots, banners, diagrams
-├── scripts/
-│   ├── healthcheck.sh            # Service health monitoring
-│   ├── bootstrap.sh              # Initial system bootstrap
-│   ├── install.sh                # Installation script
-│   ├── init-honcho.sh            # Honcho initialization
-│   ├── init-obsidian.sh          # Obsidian vault init
-│   ├── init-headroom.sh          # Headroom stack init
-│   └── install-browser-search.sh # Browser search tool setup
+├── docs/                         # Setup guides + assets
+├── scripts/                      # healthcheck, init, install helpers
 ├── searxng/                      # SearXNG configuration
 ├── honcho/                       # Honcho config
 ├── headroom/                     # Headroom config
-├── obsidian/                     # Obsidian vault + Caddyfile
+├── obsidian/                     # Vault + Caddyfile
 ├── obsidian-skills/              # Obsidian plugin skills
 ├── noc-dashboard/                # NOC monitoring dashboard
-│   ├── frontend/                 # Dashboard UI
-│   └── backend/                  # Dashboard API
 ├── browser-search/               # Browser search utilities
-├── skills/                       # AI agent skill definitions
-├── vendor/                       # Vendor dependencies
+├── vendor/                       # Submodules (honcho, headroom)
 └── tests/                        # Integration tests
 ```
 
-## 📊 Hardware Requirements
+## Contributing
 
-| Scale | CPU | RAM | Storage | Use Case |
-|-------|-----|-----|---------|----------|
-| **Basic** | 4 cores | 8 GB | 50 GB | Personal agent, light usage |
-| **Standard** | 8 cores | 16 GB | 100 GB | Multi-agent, moderate load |
-| **Performance** | 16 cores | 32 GB | 200 GB+ | Heavy inference, many agents |
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), then [open an issue](https://github.com/OneByJorah/StackForge/issues) or a pull request.
 
-## 🤝 Contributing
+## License
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.
+MIT — see [LICENSE](LICENSE).
 
-## 🔒 Security
+## Connect
 
-Found a vulnerability? Please follow our [Security Policy](SECURITY.md) and report privately to **info@jorahone.com** — do not use public issues.
-
-## 📄 License
-
-[MIT License](LICENSE) © Jhonattan L. Jimenez (OneByJorah)
-
----
-
-<div align="center">Built with 🌴 by <a href="https://github.com/OneByJorah">OneByJorah</a> · <a href="https://jorahone.com">jorahone.com</a></div>
+- [jorahone.com](https://jorahone.com)
+- [GitHub Org](https://github.com/OneByJorah)
+- [info@jorahone.com](mailto:info@jorahone.com)
