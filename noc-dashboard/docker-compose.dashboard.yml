@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile
     container_name: noc-dashboard
     ports:
-      - "9500:9500"
+      - "127.0.0.1:9500:9500"
     environment:
       POLL_INTERVAL_SECONDS: "${NOC_POLL_INTERVAL:-10}"
       PORTAINER_URL: "${PORTAINER_URL:-}"

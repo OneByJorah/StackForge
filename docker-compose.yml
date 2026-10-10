@@ -251,9 +251,9 @@ services:
     networks: [tailnet]
     ports:
       - "${SVC_SYNCTHING_UI_PORT:-8384}:8384"    # web UI
-      - "22000:22000/tcp"                         # sync transport
-      - "22000:22000/udp"
-      - "21027:21027/udp"                         # LAN discovery
+      - "127.0.0.1:22000:22000/tcp"                         # sync transport
+      - "127.0.0.1:22000:22000/udp"
+      - "127.0.0.1:21027:21027/udp"                         # LAN discovery
     volumes:
       - ./syncthing/config:/var/syncthing/config
       - ./obsidian/vault:/var/syncthing/vault:rw
@@ -300,7 +300,7 @@ services:
     restart: unless-stopped
     networks: [tailnet]
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama-data:/root/.ollama
     environment:
